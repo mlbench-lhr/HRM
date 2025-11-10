@@ -197,7 +197,8 @@ class CommonServices extends Controller
     // Expects date to be in YYYY-MM-DD format
     public function isWeekend($date): bool
     {
-        $weekendDays = json_decode(Globals::first()->weekend_off_days);
+        // $weekendDays = json_decode(Globals::first()->weekend_off_days);
+        $weekendDays = Globals::first()->weekend_off_days;
         $today = Carbon::parse($date)->englishDayOfWeek; // Get the current day of the week in English
         return in_array(strtolower($today), array_map('strtolower', $weekendDays));
     }

@@ -19,7 +19,10 @@ class Globals extends Model
 
     // Wasn't able to call this model 'Global' as it was reserved by PHP.
     protected $table = 'globals';
-
+    protected $casts = [
+        'weekend_off_days' => 'array',
+        'ip' => 'array', // if you want to work with it as array too
+    ];
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults();

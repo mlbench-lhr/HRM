@@ -3,6 +3,8 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Query\Expression;
 
 // THIS IS A SINGLETON TABLE. ONLY 1 ROW IS EXPECTED HERE.
 
@@ -20,7 +22,7 @@ return new class extends Migration
             $table->string('organization_address'); // Probably you only need the country, not full address
             $table->unsignedSmallInteger('absence_limit');
             $table->unsignedTinyInteger('payroll_day')->default(1);
-            $table->json('weekend_off_days')->default(json_encode(['friday', 'saturday']));
+            $table->json('weekend_off_days')->default(new Expression('(JSON_ARRAY("friday","saturday"))'));
             $table->string('email');
             $table->float('income_tax')->unsigned()->default(14);
             $table->boolean('is_ip_based')->default(false);

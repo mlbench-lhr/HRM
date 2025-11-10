@@ -170,49 +170,55 @@ class DatabaseSeeder extends Seeder
             'name' => 'NY Branch',
         ]);
 
-        Department::create([
+        Department::updateOrCreate([
             'name' => 'IT',
         ]);
 
-        Department::create([
+        Department::updateOrCreate([
             'name' => 'HR',
         ]);
 
-        Department::create([
+        Department::updateOrCreate([
             'name' => 'Sales',
         ]);
 
-        Department::create([
+        Department::updateOrCreate([
             'name' => 'Customer Service',
         ]);
 
-        Position::create([
-            'name' => 'CEO',
-            'description' => 'Chief Executive Officer',
-        ]);
+        // Position::create([
+        //     'name' => 'CEO',
+        //     'description' => 'Chief Executive Officer',
+        // ]);
+        Position::updateOrCreate(
+            [
+                'name' => 'CEO', // unique key check
+                'description' => 'Chief Executive Officer'
+            ]
+        );
 
-        Position::create([
+        Position::updateOrCreate([
             'name' => 'Marketing Manager',
             'description' => 'Responsible for all marketing activities',
         ]);
 
-        Position::create([
+        Position::updateOrCreate([
             'name' => 'Graphic Designer',
             'description' => 'Responsible for all graphic design activities',
         ]);
 
-        Position::create([
+        Position::updateOrCreate([
             'name' => 'Developer',
             'description' => 'Responsible for all development activities',
         ]);
 
-        Shift::create([
+        Shift::updateOrCreate([
             'name' => "Day Shift",
             'start_time' => '08:00:00',
             'end_time' => '16:00:00',
         ]);
 
-        Shift::create([
+        Shift::updateOrCreate([
             'name' => "Night Shift",
             'start_time' => '16:00:00',
             'end_time' => '00:00:00',
