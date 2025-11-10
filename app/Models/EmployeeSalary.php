@@ -27,14 +27,7 @@ class EmployeeSalary extends Model
     function getCurrencySymbol()
     {
         $currencySymbols = [
-            'EGP' => 'E£',
-            'USD' => '$',
-            'EUR' => '€',
-            'GBP' => '£',
-            'CAD' => '$',
-            'KWD' => 'د.ك',
-            'SAR' => '﷼',
-            'AED' => 'د.إ'
+            'PKR' => '₨'
         ];
 
         return $currencySymbols[$this->currency] ?? '';

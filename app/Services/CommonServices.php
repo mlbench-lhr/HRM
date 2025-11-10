@@ -150,6 +150,12 @@ class CommonServices extends Controller
     // $dateArr: [month_year, month, month_start, month_year, month, month_start] - 2 repeated fields #month_year & month
     // Just want to avoid doing logic of modifying the array for calcOffDays() call.
     public function getMonthStats($employee, $dateArr){
+        // Check if $employee is null
+    if ($employee === null) {
+        // Handle the error, maybe return a default value or throw an exception
+        return ['error' => 'Employee data is not available'];
+    }
+
         $globalSettings = Globals::first();
         return [
             'attendable_days' => $dateArr[5] - $this->calcOffDays(json_decode($globalSettings->weekend_off_days),

@@ -18,7 +18,7 @@ class PayrollFactory extends Factory
     public function definition(): array
     {
         return [
-            "currency" => "EGP",
+            "currency" => "PKR",
             "base" => $this->faker->randomFloat(2, 1000, 10000),
             "total_deductions" => $this->faker->randomFloat(2, 1000, 10000),
             "total_additions" => $this->faker->randomFloat(2, 1000, 10000),

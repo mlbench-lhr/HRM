@@ -60,11 +60,11 @@ class ShiftController extends Controller
         $shift = Shift::withCount("employees")->findOrFail($id);
         $employees = $shift->employees()
             ->where(function ($query) use ($request) {
-                $query->where('employees.name', 'ILIKE', '%' . $request->term . '%')
-                    ->orWhere('employees.email', 'ILIKE', '%' . $request->term . '%')
-                    ->orWhere('employees.id', 'ILIKE', '%' . $request->term . '%')
-                    ->orWhere('employees.phone', 'ILIKE', '%' . $request->term . '%')
-                    ->orWhere('employees.national_id', 'ILIKE', '%' . $request->term . '%');
+                $query->where('employees.name', 'LIKE', '%' . $request->term . '%')
+                    ->orWhere('employees.email', 'LIKE', '%' . $request->term . '%')
+                    ->orWhere('employees.id', 'LIKE', '%' . $request->term . '%')
+                    ->orWhere('employees.phone', 'LIKE', '%' . $request->term . '%')
+                    ->orWhere('employees.national_id', 'LIKE', '%' . $request->term . '%');
             })
             ->orderBy('employees.id')
             ->paginate(config('constants.data.pagination_count'), ['employees.id', 'employees.name', 'employees.phone', 'employees.email', 'employees.national_id']);

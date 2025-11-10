@@ -598,14 +598,7 @@ const submitShift = () => {
                                             class="fancy-selector-inline-textInput col-span-2 z-10 !mt-0"
                                             v-model="form.currency">
                                         <option value='' selected>Currency</option>
-                                        <option value="EGP">EGP</option>
-                                        <option value="USD">USD</option>
-                                        <option value="EUR">EUR</option>
-                                        <option value="GBP">GBP</option>
-                                        <option value="CAD">CAD</option>
-                                        <option value="SAR">SAR</option>
-                                        <option value="AED">AED</option>
-                                        <option value="KWD">KWD</option>
+                                        <option value="PKR">PKR</option>
                                     </select>
                                     <TextInput
                                         id="salary"

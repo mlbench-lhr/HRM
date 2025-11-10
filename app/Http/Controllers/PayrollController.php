@@ -95,9 +95,16 @@ class PayrollController extends Controller
     {
         $payroll = Payroll::with('employee')->findOrFail($id);
         $payrollDate = Carbon::parse($payroll->due_date)->subMonthNoOverflow();
+        // Check if the payroll has an associated employee
+    if (!$payroll->employee) {
+        return redirect()->back()->withErrors(['employee_not_found' => 'Employee not found for this payroll.']);
+    }
+
 
         $commonServices = new CommonServices();
         $dates = [$payrollDate->year, $payrollDate->month, 1, $payrollDate->year, $payrollDate->month, $payrollDate->daysInMonth];
+        // Ensure that activeShift() is available before calling it
+    $shiftModifier = $payroll->employee->activeShift() ? $payroll->employee->activeShift()->shift_payment_multiplier : 1; // Default to 1 if no active shift
         return Inertia::render('Payroll/PayrollReview', [
             'payroll' => $payroll,
             "month_stats" => $commonServices->getMonthStats($payroll->employee, $dates),
