@@ -48,6 +48,11 @@ Class ValidationServices extends Controller {
             'currency' => ['required'],
             'salary' => ['required','integer'],
             'role' => ['required', Rule::in($this->roles)],
+            'total_leaves' => 'required|integer|min:0',
+            'casual_leaves' => 'required|integer|min:0',
+            'sick_leaves' => 'required|integer|min:0',
+            'casual_leaves' => 'lte:total_leaves',
+            'sick_leaves' => 'lte:total_leaves',
 
         ], $this->validationMessages);
     }
@@ -73,6 +78,11 @@ Class ValidationServices extends Controller {
             'currency' => ['required'],
             'salary' => ['required','integer'],
             'role' => ['required', Rule::in($this->roles)],
+            'total_leaves' => 'required|integer|min:0',
+            'casual_leaves' => 'required|integer|min:0',
+            'sick_leaves' => 'required|integer|min:0',
+            'casual_leaves' => 'lte:total_leaves',
+            'sick_leaves' => 'lte:total_leaves',
         ], $this->validationMessages);
     }
     public function validateShiftIdDetails($request)
@@ -220,17 +230,31 @@ Class ValidationServices extends Controller {
             'ip' => $request->get('is_ip_based', false) ?  ['required' , 'array'] : ['nullable'],
             'ip.*' => $request->get('is_ip_based', false) ?  ['required' , new CustomIPValidator()] : ['nullable'],
         ], $this->validationMessages);
-
     }
+
     public function validateRequestCreationDetails($request)
     {
         return $request->validate([
-            'type' => ['required', 'string', 'in:complaint,payment,leave,other'],
-            'date' => ['array','size:2'],
-            'date.*' => ['nullable', 'date_format:Y-m-d'],
+            'type' => ['required', 'string', 'in:Complaint,Payment,Leave,Remote Work,Other'],
+
+            // General
             'message' => ['nullable', 'string'],
+
+            // Leave
+            'leave_type' => ['required_if:type,Leave', 'nullable', 'in:sick,casual', 'string'],
+            'leave_duration' => ['required_if:type,Leave', 'nullable', 'in:full,half', 'string'],
+            'half_leave_date' => ['required_if:leave_duration,half', 'nullable', 'date'],
+            'half_leave_segment' => ['nullable', 'string', 'required_if:leave_duration,half', 'in:first half,second half'],
+
+            'start_date' => ['required_if:leave_duration,full', 'nullable', 'date'],
+            'end_date' => ['required_if:leave_duration,full', 'nullable', 'date', 'after_or_equal:start_date'],
+
+            // Remote work
+            'remote_work_date' => ['required_if:type,Remote Work', 'nullable', 'date', 'after_or_equal:today'],
         ], $this->validationMessages);
     }
+
+
 
     public function validateMassAttendanceCreation($request)
     {

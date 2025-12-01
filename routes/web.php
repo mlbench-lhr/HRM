@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Notification;
+
+
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -68,7 +71,14 @@ Route::group(['middleware' => ['auth']], function () {
 
 });
 
-// Redirect authenticated users to the dashboard
+Route::post('/notifications/{id}/read', function ($id) {
+    /** @var \App\Models\Employee $user */
+    $user = auth()->user();
+    $notification = $user->notifications()->findOrFail($id);
+    $notification->markAsRead();
+    return back();
+})->name('notifications.read');
+
 Route::redirect('/', '/dashboard')->middleware('auth');
 
 // Language Switching

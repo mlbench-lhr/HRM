@@ -21,6 +21,5 @@ class AppServiceProvider extends ServiceProvider
     {
         // Localization Carbon
         \Carbon\Carbon::setLocale(config('app.locale'));
-
     }
 }

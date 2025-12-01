@@ -40,6 +40,9 @@ class EmployeeRegisterationCredentials extends Mailable implements ShouldQueue
             view: 'emails.employee-registration-credentials',
             with: [
                 'orgName' => Globals::first()->organization_name,
+                'name'      => $this->credentials['name'],
+                'email'     => $this->credentials['email'],
+                'password'  => $this->credentials['password'],
             ],
         );
     }

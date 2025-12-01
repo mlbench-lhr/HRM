@@ -22,20 +22,70 @@ class RequestController extends Controller
     /**
      * Display a listing of the resource.
      */
+    // public function index()
+    // {
+    //     $requests = \App\Models\Request::join('employees', 'requests.employee_id', '=', 'employees.id')
+    //         ->select(['requests.id', 'employees.name as employee_name', 'requests.type', 'requests.start_date',
+    //             'requests.end_date', 'requests.status', 'requests.is_seen']);
+
+    //     if (!isAdmin()) {
+    //         $requests->where('requests.employee_id', auth()->user()->id);
+    //     }
+    //     return Inertia::render('Request/Requests', [
+    //         'requests' => $requests->orderBy('requests.status')
+    //             ->paginate(config('constants.data.pagination_count')),
+    //     ]);
+    // }
     public function index()
     {
-        $requests = \App\Models\Request::join('employees', 'requests.employee_id', '=', 'employees.id')
-            ->select(['requests.id', 'employees.name as employee_name', 'requests.type', 'requests.start_date',
-                'requests.end_date', 'requests.status', 'requests.is_seen']);
+        $requests = \App\Models\Request::query()
+            ->join('employees', 'requests.employee_id', '=', 'employees.id')
+            ->leftJoin('leave_requests', 'leave_requests.request_id', '=', 'requests.id')
+            ->select([
+                'requests.id',
+                'employees.name as employee_name',
+                'requests.type',
+                'requests.status',
+                'requests.is_seen',
+
+                // unified date handling
+                'leave_requests.start_date',
+                'leave_requests.end_date',
+                'leave_requests.half_leave_date',
+                'leave_requests.remote_work_date',
+            ]);
 
         if (!isAdmin()) {
             $requests->where('requests.employee_id', auth()->user()->id);
         }
+
         return Inertia::render('Request/Requests', [
-            'requests' => $requests->orderBy('requests.status')
-                ->paginate(config('constants.data.pagination_count')),
+            'requests' => $requests
+                ->orderBy('requests.status')
+                ->paginate(config('constants.data.pagination_count'))
+                ->through(function ($row) {
+
+                    return [
+                        'id'            => $row->id,
+                        'employee_name' => $row->employee_name,
+                        'type'          => $row->type,
+                        'status'        => $row->status,
+                        'is_seen'       => $row->is_seen,
+
+                        // final normalized fields Vue expects
+                        'start_date' => $row->start_date
+                            ?? $row->half_leave_date
+                            ?? $row->remote_work_date
+                            ?? null,
+
+                        'end_date'   => $row->end_date
+                            ?? $row->half_leave_date
+                            ?? null,
+                    ];
+                }),
         ]);
     }
+
 
     /**
      * Show the form for creating a new resource.
@@ -43,7 +93,7 @@ class RequestController extends Controller
     public function create()
     {
         return Inertia::render('Request/RequestCreate', [
-            'types' => ['complaint', 'payment', 'leave', 'other'],
+            'types' => ['Complaint', 'Payment', 'Leave', 'Remote Work', 'Other'],
         ]);
     }
 
@@ -56,21 +106,54 @@ class RequestController extends Controller
         return $this->requestServices->createRequest($req, $request);
     }
 
-    /**
-     * Display the specified resource.
-     */
+
     public function show(string $id)
     {
-        $request = \App\Models\Request::with('employee')->findOrFail($id);
+        $request = \App\Models\Request::with([
+            'employee',
+            'leaveRequest'
+        ])->findOrFail($id);
+
         authenticateIfNotAdmin(auth()->user()->id, $request->employee_id);
 
-        if (auth()->user()->id == $request->employee_id && $request->status != 'Pending') {
-            // Mark the request as seen by the employee if it was approved or rejected.
-            // This will be used to display the number of unseen requests in the sidebar of user dashboard.
+        if (auth()->user()->id == $request->employee_id && $request->status !== 'Pending') {
             $request->update(['is_seen' => true]);
         }
+
         return Inertia::render('Request/RequestView', [
-            'request' => $request,
+            'request' => [
+                'id'             => $request->id,
+                'type'           => $request->type,
+                'message'        => $request->message,
+                'status'         => $request->status,
+                'admin_response' => $request->admin_response,
+                'created_at'     => $request->created_at->format('Y-m-d'),
+
+                'employee' => [
+                    'id'   => $request->employee->id,
+                    'name' => $request->employee->name,
+                ],
+
+                // LEAVE or REMOTE data (normalized)
+                'leave' => $request->leaveRequest ? [
+                    'leave_type'         => $request->leaveRequest->leave_type,
+                    'leave_duration'     => $request->leaveRequest->leave_duration,
+                    'start_date'         => $request->leaveRequest->start_date,
+                    'end_date'           => $request->leaveRequest->end_date,
+                    'half_leave_date'    => $request->leaveRequest->half_leave_date,
+                    'half_leave_segment' => $request->leaveRequest->half_leave_segment,
+                    'remote_work_date'   => $request->leaveRequest->remote_work_date,
+                ] : null,
+            ],
+
+            // You can keep this or remove it (frontend can import request_types)
+            'requestTypes' => [
+                'Complaint'   => 'Complaint',
+                'Payment'     => 'Payment',
+                'Leave'       => 'Leave',
+                'Remote Work' => 'Remote Work',
+                'Other'       => 'Other',
+            ],
         ]);
     }
 

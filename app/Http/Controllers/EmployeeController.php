@@ -106,37 +106,117 @@ class EmployeeController extends Controller
         return $this->show(auth()->user()->id);
     }
 
-    public function show(string $id): Response
+    public function show($id)
     {
+        $employee = Employee::with([
+            'leaveAllocations',
+            'leaveRequests',             // this loads leave_request rows
+            'leaveRequests.request',     // load parent request row
+            'requests',                  // ALL requests (optional)
+            'employeePositions.position',
+            'employeeShifts.shift',
+            'salaries',
+            'roles',
+            'manages',
+            'branch',
+            'department'
+        ])->findOrFail($id);
+
+        $allocation = $employee->leaveAllocations->last();
+
+        if ($allocation) {
+
+            // 1. compute total approved usage
+            $approved_used = $employee->leaveRequests
+                ->filter(fn($r) => $r->request && $r->request->status === 'Approved')
+                ->sum(fn($item) => (float) $item->leave_duration);
+
+            // 2. compute remaining and unpaid totals
+            $total = $allocation->total_leaves;
+
+            $remaining = $total - $approved_used;
+
+            if ($remaining < 0) {
+                $unpaid_total = abs($remaining);
+                $remaining = 0;
+            } else {
+                $unpaid_total = 0;
+            }
+
+            // 3. update DB (fixes negative values permanently)
+            $allocation->update([
+                'used_leaves'      => $approved_used,
+                'remaining_leaves' => $remaining,
+                'unpaid_leaves'    => $unpaid_total,
+            ]);
+
+            // 4. compute per-request remaining_after
+            $employee->leaveRequests->each(function ($leave) use ($employee, $allocation, $total) {
+
+                if (!$leave->request || $leave->request->status !== 'Approved') {
+                    $leave->remaining_after = $allocation->remaining_leaves;
+                    $leave->unpaid_leave = 0;
+                    return;
+                }
+
+                $used_before = $employee->leaveRequests
+                    ->filter(fn($r) => $r->request && $r->request->status === 'Approved')
+                    ->takeUntil($leave)
+                    ->sum(fn($item) => (float) $item->leave_duration);
+
+                $used_total = $used_before + (float) $leave->leave_duration;
+
+                $remaining_after = $total - $used_total;
+
+                if ($remaining_after < 0) {
+                    $leave->unpaid_leave = abs($remaining_after);
+                    $leave->remaining_after = 0;
+                } else {
+                    $leave->unpaid_leave = 0;
+                    $leave->remaining_after = $remaining_after;
+                }
+            });
+        }
+
+
         return Inertia::render('Employee/EmployeeView', [
-            'employee' => Employee::with("salaries", "roles", 'employeeShifts.shift', 'employeePositions.position', 'manages')
-                ->leftjoin('departments', 'employees.department_id',
-                    '=', 'departments.id')
-                ->leftJoin('branches', 'employees.branch_id', '=', 'branches.id')
-                ->where('employees.id', $id)
-                ->select('employees.id', 'employees.name', 'employees.phone', 'employees.national_id', 'employees.email',
-                    'employees.address', 'employees.bank_acc_no', 'departments.name as department_name',
-                    'departments.id as department_id', 'branches.id as branch_id', 'branches.name as branch_name',
-                    'employees.hired_on', 'employees.is_remote')
-                ->first(),
+            'employee' => $employee,
         ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(string $id)
     {
+        $employee = Employee::with([
+            'salaries',
+            'roles',
+            'employeeShifts.shift',
+            'employeePositions.position',
+            'leaveAllocations' => function ($query) {
+                $query->where('year', date('Y'));
+            }
+        ])
+            ->leftJoin('departments', 'employees.department_id', '=', 'departments.id')
+            ->leftJoin('branches', 'employees.branch_id', '=', 'branches.id')
+            ->where('employees.id', $id)
+            ->select(
+                'employees.id',
+                'employees.name',
+                'employees.phone',
+                'employees.national_id',
+                'employees.email',
+                'employees.address',
+                'employees.bank_acc_no',
+                'employees.hired_on',
+                'departments.name as department_name',
+                'departments.id as department_id',
+                'branches.id as branch_id',
+                'branches.name as branch_name',
+                'employees.is_remote'
+            )
+            ->first();
+
         return Inertia::render('Employee/EmployeeEdit', [
-            'employee' => Employee::with("salaries", "roles", 'employeeShifts.shift', 'employeePositions.position')
-                ->leftjoin('departments', 'employees.department_id',
-                    '=', 'departments.id')
-                ->leftJoin('branches', 'employees.branch_id', '=', 'branches.id')
-                ->where('employees.id', $id)
-                ->select('employees.id', 'employees.name', 'employees.phone', 'employees.national_id', 'employees.email',
-                    'employees.address', 'employees.bank_acc_no', 'employees.hired_on', 'departments.name as department_name',
-                    'departments.id as department_id', 'branches.id as branch_id', 'branches.name as branch_name', 'employees.is_remote')
-                ->first(),
+            'employee' => $employee,
             'departments' => Department::select(['id', 'name'])->get(),
             'branches' => Branch::select(['id', 'name'])->get(),
             'positions' => Position::select(['id', 'name'])->get(),

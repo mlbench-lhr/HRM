@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Mail\EmployeeRegisterationCredentials;
 use App\Models\ArchivedEmployee;
 use App\Models\Employee;
+use App\Models\EmployeeLeaveAllocation;
 use App\Models\EmployeePosition;
 use App\Models\EmployeeSalary;
 use App\Models\EmployeeShift;
+
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 
@@ -33,7 +35,16 @@ class EmployeeServices
             'is_remote' => $res['is_remote'],
             'password' => $res['password'],
         ]);
-
+        $allocation = EmployeeLeaveAllocation::create([
+            'employee_id' => $emp->id,
+            'year' => date('Y'),
+            'total_leaves' => $res['total_leaves'],
+            'casual_leaves' => $res['casual_leaves'],
+            'sick_leaves' => $res['sick_leaves'],
+            'unpaid_leaves' => 0
+        ]);
+        $allocation->remaining_leaves = $allocation->total_leaves;
+        $allocation->save();
         // Salary Registration
         EmployeeSalary::create([
             'employee_id' => $emp['id'],
@@ -66,7 +77,7 @@ class EmployeeServices
         // Assign Role
         $emp->assignRole($res['role']);
 
-        // Send Email to user with credentials
+        //  Send Email to user with credentials
         Mail::to($emp->email)->send(new EmployeeRegisterationCredentials([
             'name' => $emp->name,
             'email' => $emp->email,
@@ -92,6 +103,24 @@ class EmployeeServices
             'department_id' => $res['department_id'],
             'is_remote' => $res['is_remote'],
         ]);
+        $leave = $employee->leaveAllocations()->firstOrCreate(
+            ['year' => date('Y')],
+            [
+                'total_leaves' => 0,
+                'casual_leaves' => 0,
+                'sick_leaves' => 0
+            ]
+        );
+
+        $leave->update([
+            'total_leaves' => $res['total_leaves'],
+            'casual_leaves' => $res['casual_leaves'],
+            'sick_leaves' => $res['sick_leaves'],
+            // 'unpaid_leaves' => $res['unpaid_leaves'] ?? 0,
+        ]);
+        // Recalculate remaining
+        $leave->remaining_leaves = $leave->total_leaves - $leave->used_leaves;
+        $leave->save();
 
         // Update Shifts, Salary, Position, and Permissions
         $curPos = $employee->employeePositions()->whereNull('end_date')->first();

@@ -35,6 +35,62 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user() ? $request->user()->only('id', 'name', 'email')
                         + ["roles"=>$request->user()->getRoleNames()] : null,
+                // latest 10 notifications (read and unread)
+                'notifications' => $request->user()
+                    ? $request->user()
+                    ->notifications()
+                    ->orderBy('created_at', 'desc')
+                    ->take(10)
+                    ->get()
+                    ->map(function ($n) {
+                        $data = is_array($n->data) ? $n->data : (array) json_decode($n->data, true);
+
+                        $type = $data['type'] ?? 'Request';
+
+                        // status mapping for legacy numeric values
+                        $rawStatus = $data['status'] ?? null;
+
+                        $statusText = match ($rawStatus) {
+                            1, '1' => 'Approved',
+                            2, '2' => 'Rejected',
+                            0, '0' => 'Pending',
+                            default => $rawStatus,
+                        };
+
+                        // title fallback
+                        $title = $data['title'] ?? "{$type} Request";
+
+                        // message fallback with mapped status
+                        $message = $data['message']
+                            ?? (
+                                $rawStatus !== null
+                                ? "Your {$type} request has been {$statusText}."
+                                : "You have a {$type} notification."
+                            );
+
+                        // url fallback
+                        $url = $data['url']
+                            ?? (
+                                !empty($data['request_id'])
+                                ? route('requests.show', ['request' => $data['request_id']])
+                                : null
+                            );
+
+                        return [
+                            'id'         => $n->id,
+                            'type'       => class_basename($n->type),
+                            'title'      => $title,
+                            'message'    => $message,
+                            'data'       => $data,
+                            'url'        => $url,
+                            'read'       => (bool) $n->read_at,
+                            'created_at' => $n->created_at->toDateTimeString(),
+                        ];
+                    })
+                    : [],
+
+                // unread count
+                'unreadCount' => $request->user() ? $request->user()->unreadNotifications()->count() : 0,
             ],
             'ziggy' => function () use ($request) {
                 return array_merge((new Ziggy)->toArray(), [

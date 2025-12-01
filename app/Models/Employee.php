@@ -12,6 +12,9 @@ use Spatie\Permission\Traits\HasRoles;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+/**
+ * @method static Employee user()
+ */
 class Employee extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
@@ -43,6 +46,32 @@ class Employee extends Authenticatable
         'password' => 'hashed',
     ];
 
+    public function leaveAllocations()
+    {
+        return $this->hasMany(EmployeeLeaveAllocation::class, 'employee_id', 'id');
+    }
+    public function requests()
+    {
+        return $this->hasMany(Request::class, 'employee_id', 'id');
+    }
+
+    public function leaveRequests()
+    {
+        return $this->hasManyThrough(
+            LeaveRequest::class,
+            Request::class,
+            'employee_id',
+            'request_id',
+            'id',
+            'id'
+        )->whereHas('request', function ($q) {
+            $q->where('type', 'Leave');
+        });
+    }
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id');
+    }
     protected static function boot(): void
     {
         parent::boot();

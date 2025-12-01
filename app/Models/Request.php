@@ -6,11 +6,13 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Models\LeaveRequest;
 
 class Request extends Model
 {
     use LogsActivity;
     protected $guarded = [];
+    protected $appends = ['raw_status'];
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -21,7 +23,14 @@ class Request extends Model
     {
         return $this->belongsTo(Employee::class);
     }
-
+    public function leaveRequest()
+    {
+        return $this->hasOne(LeaveRequest::class);
+    }
+    public function getRawStatusAttribute()
+    {
+        return $this->attributes['status']; // return the DB value directly
+    }
     protected function status(): Attribute
     {
         return Attribute::make(
