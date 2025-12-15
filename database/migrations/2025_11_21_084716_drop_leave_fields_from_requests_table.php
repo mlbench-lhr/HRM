@@ -12,24 +12,31 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('requests', function (Blueprint $table) {
-            // Drop foreign key first
-            $table->dropForeign(['leave_type_id']);
-            // Drop columns
-            $table->dropColumn([
-                'leave_type_id',
-                'leave_duration',
-                'total_days',
-            ]);
+
+            // Drop foreign key only if column exists
+            if (Schema::hasColumn('requests', 'leave_type_id')) {
+
+                try {
+                    $table->dropForeign(['leave_type_id']);
+                } catch (\Throwable $e) {
+                    // foreign key does not exist, ignore
+                }
+
+                $table->dropColumn('leave_type_id');
+            }
+
+            if (Schema::hasColumn('requests', 'leave_duration')) {
+                $table->dropColumn('leave_duration');
+            }
+
+            if (Schema::hasColumn('requests', 'total_days')) {
+                $table->dropColumn('total_days');
+            }
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::table('requests', function (Blueprint $table) {
-            //
-        });
+        // intentionally left empty
     }
 };
