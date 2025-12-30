@@ -106,9 +106,87 @@ class EmployeeController extends Controller
         return $this->show(auth()->user()->id);
     }
 
+    // public function show($id)
+    // {
+    //     $employee = Employee::with([
+    //         'leaveAllocations',
+    //         'leaveRequests',             // this loads leave_request rows
+    //         'leaveRequests.request',     // load parent request row
+    //         'requests',                  // ALL requests (optional)
+    //         'employeePositions.position',
+    //         'employeeShifts.shift',
+    //         'salaries',
+    //         'roles',
+    //         'manages',
+    //         'branch',
+    //         'department'
+    //     ])->findOrFail($id);
+
+    //     $allocation = $employee->leaveAllocations->last();
+
+    //     if ($allocation) {
+
+    //         // 1. compute total approved usage
+    //         $approved_used = $employee->leaveRequests
+    //             ->filter(fn($r) => $r->request && $r->request->status === 'Approved')
+    //             ->sum(fn($item) => (float) $item->leave_duration);
+
+    //         // 2. compute remaining and unpaid totals
+    //         $total = $allocation->total_leaves;
+
+    //         $remaining = $total - $approved_used;
+
+    //         if ($remaining < 0) {
+    //             $unpaid_total = abs($remaining);
+    //             $remaining = 0;
+    //         } else {
+    //             $unpaid_total = 0;
+    //         }
+
+    //         // 3. update DB (fixes negative values permanently)
+    //         $allocation->update([
+    //             'used_leaves'      => $approved_used,
+    //             'remaining_leaves' => $remaining,
+    //             'unpaid_leaves'    => $unpaid_total,
+    //         ]);
+
+    //         // 4. compute per-request remaining_after
+    //         $employee->leaveRequests->each(function ($leave) use ($employee, $allocation, $total) {
+
+    //             if (!$leave->request || $leave->request->status !== 'Approved') {
+    //                 $leave->remaining_after = $allocation->remaining_leaves;
+    //                 $leave->unpaid_leave = 0;
+    //                 return;
+    //             }
+
+    //             $used_before = $employee->leaveRequests
+    //                 ->filter(fn($r) => $r->request && $r->request->status === 'Approved')
+    //                 ->takeUntil($leave)
+    //                 ->sum(fn($item) => (float) $item->leave_duration);
+
+    //             $used_total = $used_before + (float) $leave->leave_duration;
+
+    //             $remaining_after = $total - $used_total;
+
+    //             if ($remaining_after < 0) {
+    //                 $leave->unpaid_leave = abs($remaining_after);
+    //                 $leave->remaining_after = 0;
+    //             } else {
+    //                 $leave->unpaid_leave = 0;
+    //                 $leave->remaining_after = $remaining_after;
+    //             }
+    //         });
+    //     }
+
+
+    //     return Inertia::render('Employee/EmployeeView', [
+    //         'employee' => $employee,
+    //     ]);
+    // }
     public function show($id)
     {
         $employee = Employee::with([
+
             'leaveAllocations',
             'leaveRequests',             // this loads leave_request rows
             'leaveRequests.request',     // load parent request row
@@ -122,68 +200,78 @@ class EmployeeController extends Controller
             'department'
         ])->findOrFail($id);
 
-        $allocation = $employee->leaveAllocations->last();
+        // 1. Group allocations by year for easy lookup
+        $allocations = $employee->leaveAllocations->keyBy('year');
 
-        if ($allocation) {
+        // 2. Sort ALL leave requests by date to calculate history correctly
+        $sortedLeaves = $employee->leaveRequests->sortBy(function ($leave) {
+            return $leave->start_date ?? $leave->half_leave_date;
+        });
 
-            // 1. compute total approved usage
-            $approved_used = $employee->leaveRequests
-                ->filter(fn($r) => $r->request && $r->request->status === 'Approved')
-                ->sum(fn($item) => (float) $item->leave_duration);
+        // We need to keep track of "running used" for EACH year separately
+        $runningUsedByYear = [];
 
-            // 2. compute remaining and unpaid totals
-            $total = $allocation->total_leaves;
+        $sortedLeaves->each(function ($leave) use ($allocations, &$runningUsedByYear) {
+            // Find the year of this specific leave
+            $date = $leave->start_date ?? $leave->half_leave_date;
+            $year = \Carbon\Carbon::parse($date)->year;
 
-            $remaining = $total - $approved_used;
-
-            if ($remaining < 0) {
-                $unpaid_total = abs($remaining);
-                $remaining = 0;
-            } else {
-                $unpaid_total = 0;
+            // Initialize running used for this year if not exists
+            if (!isset($runningUsedByYear[$year])) {
+                $runningUsedByYear[$year] = 0;
             }
 
-            // 3. update DB (fixes negative values permanently)
-            $allocation->update([
-                'used_leaves'      => $approved_used,
-                'remaining_leaves' => $remaining,
-                'unpaid_leaves'    => $unpaid_total,
-            ]);
+            $allocation = $allocations->get($year);
 
-            // 4. compute per-request remaining_after
-            $employee->leaveRequests->each(function ($leave) use ($employee, $allocation, $total) {
+            // If no allocation exists for that year, we can't calculate balances
+            if (!$allocation) {
+                $leave->remaining_after = 0;
+                $leave->unpaid_leave = 0;
+                return;
+            }
 
-                if (!$leave->request || $leave->request->status !== 'Approved') {
-                    $leave->remaining_after = $allocation->remaining_leaves;
-                    $leave->unpaid_leave = 0;
-                    return;
-                }
+            if ($leave->request && $leave->request->status === 'Approved') {
+                $duration = (float) $leave->leave_duration;
 
-                $used_before = $employee->leaveRequests
-                    ->filter(fn($r) => $r->request && $r->request->status === 'Approved')
-                    ->takeUntil($leave)
-                    ->sum(fn($item) => (float) $item->leave_duration);
+                // Add to the running total for THIS year
+                $runningUsedByYear[$year] += $duration;
 
-                $used_total = $used_before + (float) $leave->leave_duration;
+                $totalForYear = (float) $allocation->total_leaves;
+                $balance = $totalForYear - $runningUsedByYear[$year];
 
-                $remaining_after = $total - $used_total;
-
-                if ($remaining_after < 0) {
-                    $leave->unpaid_leave = abs($remaining_after);
+                if ($balance < 0) {
                     $leave->remaining_after = 0;
+                    $leave->unpaid_leave = abs($balance);
                 } else {
+                    $leave->remaining_after = $balance;
                     $leave->unpaid_leave = 0;
-                    $leave->remaining_after = $remaining_after;
                 }
-            });
-        }
+            } else {
+                // For Pending/Rejected, show current state or 0
+                $leave->remaining_after = 0;
+                $leave->unpaid_leave = 0;
+            }
+        });
 
+        // 3. Final Step: Update the database totals for the Allocation cards
+        foreach ($runningUsedByYear as $year => $totalUsed) {
+            $allocation = $allocations->get($year);
+            if ($allocation) {
+                $remaining = max(0, $allocation->total_leaves - $totalUsed);
+                $unpaid = ($totalUsed > $allocation->total_leaves) ? ($totalUsed - $allocation->total_leaves) : 0;
+
+                $allocation->update([
+                    'used_leaves' => $totalUsed,
+                    'remaining_leaves' => $remaining,
+                    'unpaid_leaves' => $unpaid
+                ]);
+            }
+        }
 
         return Inertia::render('Employee/EmployeeView', [
             'employee' => $employee,
         ]);
     }
-
     public function edit(string $id)
     {
         $employee = Employee::with([

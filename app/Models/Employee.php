@@ -18,7 +18,7 @@ use Spatie\Activitylog\LogOptions;
 class Employee extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
-
+    protected $guard_name = 'web';
     /**
      * The attributes that are mass assignable.
      *
@@ -121,7 +121,7 @@ class Employee extends Authenticatable
     public function employeePositions(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(EmployeePosition::class, 'employee_id');
-//        return $this->hasManyThrough(Position::class, EmployeePosition::class, 'employee_id', 'id', 'id', 'position_id');
+        //        return $this->hasManyThrough(Position::class, EmployeePosition::class, 'employee_id', 'id', 'id', 'position_id');
     }
 
     // WARNING: THIS FUNCTION ONLY FETCHES THE LAST ACTIVE POSITION. IF AN EMPLOYEE HAS MULTIPLE ACTIVE POSITIONS, THIS FUNCTION WILL ONLY RETURN THE LAST ONE
@@ -145,7 +145,8 @@ class Employee extends Authenticatable
     /**************------- Department -------*************/
 
 
-    public function manages(){
+    public function manages()
+    {
         return $this->hasMany(Manager::class, 'employee_id');
     }
 
@@ -201,7 +202,8 @@ class Employee extends Authenticatable
         return $this->attendances()->where('status', '=', 'missed');
     }
 
-    public function getYearStats($globalSettings = null){
+    public function getYearStats($globalSettings = null)
+    {
         $globalSettings ?? Globals::first();
         $commonServices = new \App\Services\CommonServices();
         $thisYearData = $commonServices->calcOffDays($globalSettings->weekend_off_days, $this->hired_on);
@@ -235,7 +237,7 @@ class Employee extends Authenticatable
 
         // Calculations from the start of the month until today.
         $holidaysCountSoFar = $commonServices->countHolidays($this->hired_on, [$curYear, $curMonth, 1, $curYear, $curMonth, $curDay]);
-        $workingDaysSoFar = $curDay - 1 -$holidaysCountSoFar - // -1 to exclude today
+        $workingDaysSoFar = $curDay - 1 - $holidaysCountSoFar - // -1 to exclude today
             $commonServices->calcOffDays($globalSettings->weekend_off_days, $this->hired_on, [$curYear, $curMonth, 1, $curYear, $curMonth, $curDay]);
 
         // Calculations for the entire year until today
@@ -255,7 +257,7 @@ class Employee extends Authenticatable
                 ->whereDate('date', '<=', $now)->count();
 
             $totalAbsentedSoFar = (clone $absented)->whereYear('date', $curYear)
-                    ->whereDate('date', '<=', $now)->count();
+                ->whereDate('date', '<=', $now)->count();
         } else {
             $totalAttendanceSoFar = (clone $attended)->whereDate('date', '<=', $now)->count();
             $totalAbsentedSoFar = (clone $absented)->whereDate('date', '<=', $now)->count();
@@ -325,6 +327,4 @@ class Employee extends Authenticatable
             "hoursDifference" => $actualHours - $expectedHours,
         ];
     }
-
-
 }

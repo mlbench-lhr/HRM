@@ -34,10 +34,11 @@ class Request extends Model
     protected function status(): Attribute
     {
         return Attribute::make(
-            get: fn (int $value) => match ($value) {
+            get: fn(int $value) => match ($value) {
                 0 => 'Pending',
                 1 => 'Approved',
                 2 => 'Rejected',
+                default => 'Unknown',
             },
         );
     }

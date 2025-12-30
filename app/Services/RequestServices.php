@@ -16,6 +16,7 @@ use App\Notifications\RequestReviewed;
 
 use App\Models\Request as EmpRequest;
 use App\Models\EmployeeLeaveAllocation;
+use Illuminate\Support\Facades\DB;
 
 class RequestServices
 {
@@ -133,6 +134,49 @@ class RequestServices
 
             $allocation->save();
         }
-    }
+        // ONLY WHEN APPROVED AND TYPE = LEAVE
+        // if ($req['status'] == 1 && $empReq->type === 'Leave') {
 
+        //     $leave = $empReq->leaveRequest;
+        //     if (! $leave) return;
+
+        //     // 1. Get leave date (NOT current date)
+        //     $leaveDate =
+        //         $leave->start_date
+        //         ?? $leave->half_leave_date
+        //         ?? $leave->remote_work_date;
+
+        //     // 2. Extract year from leave date
+        //     $year = Carbon::parse($leaveDate)->year;
+
+        //     $used = (float) $leave->leave_duration;
+
+        //     // 3. Deduct from THAT YEAR only
+        //     DB::transaction(function () use ($empReq, $year, $used) {
+
+        //         $allocation = EmployeeLeaveAllocation::where('employee_id', $empReq->employee_id)
+        //             ->where('year', $year)
+        //             ->lockForUpdate()
+        //             ->first();
+
+        //         if (! $allocation) {
+        //             abort(422, "No leave allocation for year {$year}");
+        //         }
+
+        //         $allocation->used_leaves += $used;
+
+        //         $remaining = $allocation->total_leaves - $allocation->used_leaves;
+
+        //         if ($remaining < 0) {
+        //             $allocation->unpaid_leaves = abs($remaining);
+        //             $allocation->remaining_leaves = 0;
+        //         } else {
+        //             $allocation->remaining_leaves = $remaining;
+        //             $allocation->unpaid_leaves = 0;
+        //         }
+
+        //         $allocation->save();
+        //     });
+        // }
+    }
 }

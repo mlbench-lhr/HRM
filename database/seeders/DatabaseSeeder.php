@@ -66,6 +66,7 @@ class DatabaseSeeder extends Seeder
         $roles = [
             'admin',
             'employee',
+            'probation',
         ];
 
         foreach ($roles as $role) {
@@ -93,10 +94,10 @@ class DatabaseSeeder extends Seeder
                 'end_date' => null,
             ]);
 
-            $currencies = ['USD', 'EGP', 'SAR', 'EUR', 'GBP'];
+            $currencies = ['PKR'];
             EmployeeSalary::create([
                 'employee_id' => $employee->id,
-                'currency' => $currencies[array_rand($currencies)],
+                'currency' => $currencies,
                 'salary' => fake()->numberBetween(2000, 8000),
                 'start_date' => now()->format('Y-m-d'),
                 'end_date' => null,
@@ -111,7 +112,7 @@ class DatabaseSeeder extends Seeder
 
             for ($i = 0; $i < $days; $i++) {
                 if (!$commonServices->isDayOff($startDate->format('Y-m-d'))) {
-                    if(fake()->boolean){
+                    if (fake()->boolean) {
                         Attendance::create([
                             'employee_id' => $employee->id,
                             'date' => $startDate->format('Y-m-d'),
@@ -121,9 +122,9 @@ class DatabaseSeeder extends Seeder
                         ]);
                     } else {
                         Attendance::create([
-                        'employee_id' => $employee->id,
-                        'date' => $startDate->format('Y-m-d'),
-                        'status' => 'missed',
+                            'employee_id' => $employee->id,
+                            'date' => $startDate->format('Y-m-d'),
+                            'status' => 'missed',
                         ]);
                     }
                 }
@@ -255,7 +256,8 @@ class DatabaseSeeder extends Seeder
             ]);
         }
     }
-    private function generateRandomPayrolls(){
+    private function generateRandomPayrolls()
+    {
         for ($i = 1; $i <= Employee::count(); $i++) {
             $employee_id = Employee::find($i)->id;
 
@@ -286,5 +288,4 @@ class DatabaseSeeder extends Seeder
             ]);
         }
     }
-
 }

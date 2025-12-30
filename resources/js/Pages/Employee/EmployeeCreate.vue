@@ -128,19 +128,29 @@ watch(
     }
 );
 
+// const submit = () => {
+//     form.hired_on = dayjs(form.hired_on).format("YYYY-MM-DD");
+//     form.post(route("employees.store"), {
+//         preserveScroll: true,
+//         onError: () => {
+//             useToast().error(__("Error Creating Employee"));
+//         },
+//         onSuccess: () => {
+//             useToast().success(__("Employee Created Successfully"));
+//         },
+//     });
+// };
 const submit = () => {
     form.hired_on = dayjs(form.hired_on).format("YYYY-MM-DD");
+
     form.post(route("employees.store"), {
         preserveScroll: true,
-        onError: () => {
-            useToast().error(__("Error Creating Employee"));
-        },
-        onSuccess: () => {
-            useToast().success(__("Employee Created Successfully"));
+        onError: (errors) => {
+            console.log("INERTIA ERRORS:", errors);
+            console.log("FORM ERRORS:", form.errors);
         },
     });
 };
-
 const submitPosition = () => {
     positionForm.post(route("positions.store"), {
         preserveScroll: true,
@@ -995,10 +1005,10 @@ const submitShift = () => {
                                         class="fancy-selector-inline-textInput col-span-2 z-10 !mt-0"
                                         v-model="form.currency"
                                     >
-                                        <option value="" selected>
-                                            Currency
+                                        <option value="">Currency</option>
+                                        <option value="PKR" selected>
+                                            PKR
                                         </option>
-                                        <option value="PKR">PKR</option>
                                     </select>
                                     <TextInput
                                         id="salary"

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        foreach (['admin', 'employee', 'probation'] as $role) {
+            Role::firstOrCreate(['name' => $role]);
+        }
         // Localization Carbon
         \Carbon\Carbon::setLocale(config('app.locale'));
     }

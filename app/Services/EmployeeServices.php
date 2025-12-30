@@ -75,7 +75,9 @@ class EmployeeServices
         }
 
         // Assign Role
-        $emp->assignRole($res['role']);
+        if (!empty($res['role'])) {
+            $emp->assignRole(trim((string) $res['role']));
+        }
 
         //  Send Email to user with credentials
         Mail::to($emp->email)->send(new EmployeeRegisterationCredentials([
@@ -89,7 +91,7 @@ class EmployeeServices
 
     public function updateEmployee($employee, $res): \Illuminate\Http\RedirectResponse
     {
-
+        $oldRole = $employee->getRoleNames()->first();
         // Update Personal Details
         $employee->update([
             'name' => $res['name'],
@@ -164,10 +166,22 @@ class EmployeeServices
         }
 
         $currentRole = $employee->getRoleNames()->first();
-        if ($currentRole != $res['role']) {
-            $employee->removeRole($currentRole);
-            $employee->assignRole($res['role']);
-            $employee->save();
+        $newRole = trim((string) $res['role']);
+
+        if ($newRole && $currentRole !== $newRole) {
+
+            if ($currentRole) {
+                $employee->removeRole($currentRole);
+            }
+
+            $employee->assignRole($newRole);
+        }
+
+        $newRole = $res['role'];
+
+        if ($oldRole === 'probation' && $newRole === 'employee') {
+            app(LeaveAllocationService::class)
+                ->allocateOnConfirmation($employee);
         }
         return to_route('employees.show', ['employee' => $employee->id]);
     }
@@ -180,6 +194,7 @@ class EmployeeServices
         if ($employee->id == auth()->user()->id) {
             return response()->json(['Error' => 'You cannot delete yourself.'], 403);
         }
+
 
         // Move employee to archived_employees first..
         ArchivedEmployee::create([

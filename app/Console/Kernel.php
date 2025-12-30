@@ -19,6 +19,8 @@ class Kernel extends ConsoleKernel
         $schedule->call(new DailyAttendanceHandle())->daily();    // Every Day at 00:00
         $schedule->command('activitylog:clean')->twiceMonthly(1, 16, '00:00'); // Clear Activity Log
         $schedule->call(new MonthlyPayrollsHandle())->monthlyOn(Globals::first()->payroll_day, '00:00');  // The first day of every month at 00:00
+        $schedule->command('leaves:allocate')
+            ->yearlyOn(1, 1, '00:10');
     }
 
     /**
@@ -26,8 +28,11 @@ class Kernel extends ConsoleKernel
      */
     protected function commands(): void
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');
     }
+    // protected $commands = [
+    //     \App\Console\Commands\LeaveAllocation::class,
+    // ];
 }

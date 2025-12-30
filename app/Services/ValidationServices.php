@@ -8,11 +8,12 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Propaganistas\LaravelPhone\Rules\Phone;
 use Intervention\Validation\Rules\Iban;
-
+use Spatie\Permission\Models\Role;
 use Session;
 
 // You should rename "Verifiers" to "Validate"
-Class ValidationServices extends Controller {
+class ValidationServices extends Controller
+{
 
     protected $validationMessages = [
         'phone' => 'This phone number format is not valid.',
@@ -32,8 +33,8 @@ Class ValidationServices extends Controller {
     {
         return $request->validate([
             'name' => ['required', 'unique:employees', 'max:50'],
-            'email' => ['required','unique:employees', 'email:strict'],
-//            'national_id' => ['required', 'unique:employees', 'min:14', 'max:14'], // Egypt's national ID is 14 digits
+            'email' => ['required', 'unique:employees', 'email:strict'],
+            //            'national_id' => ['required', 'unique:employees', 'min:14', 'max:14'], // Egypt's national ID is 14 digits
             'national_id' => ['required', 'unique:employees'],
             'phone' => ['required', 'regex:/(^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$)/', 'unique:employees'],
             'hired_on' => ['nullable', 'date_format:Y-m-d'],
@@ -46,8 +47,15 @@ Class ValidationServices extends Controller {
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
             'currency' => ['required'],
-            'salary' => ['required','integer'],
-            'role' => ['required', Rule::in($this->roles)],
+            'salary' => ['required', 'integer'],
+            'role' => [
+                'required',
+                function ($attribute, $value, $fail) {
+                    if (!\Spatie\Permission\Models\Role::where('name', $value)->exists()) {
+                        $fail('Invalid Role');
+                    }
+                }
+            ],
             'total_leaves' => 'required|integer|min:0',
             'casual_leaves' => 'required|integer|min:0',
             'sick_leaves' => 'required|integer|min:0',
@@ -61,11 +69,11 @@ Class ValidationServices extends Controller {
     {
         //
         return $request->validate([
-            'name' => ['required', 'unique:employees,name,'.$id, 'max:50'],
-            'email' => ['required','unique:employees,email,'.$id, 'email:strict'],
-//            'national_id' => ['required', 'unique:employees,national_id,'.$id, 'min:14', 'max:14'], // Egypt's national ID is 14 digits
-            'national_id' => ['required', 'unique:employees,national_id,'.$id],
-            'phone' => ['required', 'regex:/(^[\+]??[0-9]{3}?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$)/', 'unique:employees,phone,'.$id],
+            'name' => ['required', 'unique:employees,name,' . $id, 'max:50'],
+            'email' => ['required', 'unique:employees,email,' . $id, 'email:strict'],
+            //            'national_id' => ['required', 'unique:employees,national_id,'.$id, 'min:14', 'max:14'], // Egypt's national ID is 14 digits
+            'national_id' => ['required', 'unique:employees,national_id,' . $id],
+            'phone' => ['required', 'regex:/(^[\+]??[0-9]{3}?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$)/', 'unique:employees,phone,' . $id],
             'hired_on' => ['nullable', 'date'],
             'address' => ['required', 'string', 'max:255'],
             'bank_acc_no' => ['iban', 'nullable'],
@@ -76,8 +84,15 @@ Class ValidationServices extends Controller {
             'shift_id' => ['required', 'integer'],
             'position_id' => ['required', 'integer'],
             'currency' => ['required'],
-            'salary' => ['required','integer'],
-            'role' => ['required', Rule::in($this->roles)],
+            'salary' => ['required', 'integer'],
+            'role' => [
+                'required',
+                function ($attribute, $value, $fail) {
+                    if (!\Spatie\Permission\Models\Role::where('name', $value)->exists()) {
+                        $fail('Invalid Role');
+                    }
+                }
+            ],
             'total_leaves' => 'required|integer|min:0',
             'casual_leaves' => 'required|integer|min:0',
             'sick_leaves' => 'required|integer|min:0',
@@ -99,10 +114,10 @@ Class ValidationServices extends Controller {
     }
     public function validateEmployeeSalaryDetails($request)
     {
-//        dd($request-);
+        //        dd($request-);
         return $request->validate([
             'currency' => ['required'],
-            'salary' => ['required','integer'],
+            'salary' => ['required', 'integer'],
         ], $this->validationMessages);
     }
     public function validatePositionCreationDetails($request)
@@ -115,7 +130,7 @@ Class ValidationServices extends Controller {
     public function validatePositionUpdateDetails($request, $id)
     {
         return $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:positions,name,'.$id],
+            'name' => ['required', 'string', 'max:255', 'unique:positions,name,' . $id],
             'description' => ['nullable', 'string'],
         ], $this->validationMessages);
     }
@@ -130,14 +145,21 @@ Class ValidationServices extends Controller {
     {
         //             'name' => ['required', 'string', 'max:255', 'unique:branches,name,'.$id],
         return $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:departments,name,'.$id],
+            'name' => ['required', 'string', 'max:255', 'unique:departments,name,' . $id],
             'manager_id' => ['nullable', 'integer'],
         ], $this->validationMessages);
     }
     public function validateEmployeeRoleDetails($request)
     {
         return $request->validate([
-            'role' => ['required', Rule::in($this->roles)],
+            'role' => [
+                'required',
+                function ($attribute, $value, $fail) {
+                    if (!Role::where('name', $value)->exists()) {
+                        $fail('Invalid Role');
+                    }
+                }
+            ],
         ], $this->validationMessages);
     }
     public function validateBranchCreationDetails($request)
@@ -153,7 +175,7 @@ Class ValidationServices extends Controller {
     public function validateBranchUpdateDetails($request, $id)
     {
         return $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:branches,name,'.$id],
+            'name' => ['required', 'string', 'max:255', 'unique:branches,name,' . $id],
             'address' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'regex:/(^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$)/'],
             'email' => ['required', 'email:strict'],
@@ -193,7 +215,7 @@ Class ValidationServices extends Controller {
             'end_time.minutes' => ['required', 'numeric'],
             'end_time.seconds' => ['required', 'numeric'],
 
-            'name' => ['required', 'string', 'unique:shifts,name,'.$id, 'max:255'],
+            'name' => ['required', 'string', 'unique:shifts,name,' . $id, 'max:255'],
             'shift_payment_multiplier' => ['nullable', 'numeric', 'min:1'],
             'description' => ['nullable', 'string'],
 
@@ -204,7 +226,7 @@ Class ValidationServices extends Controller {
         return $request->validate([
             'start_time' => ['required', 'date_format:H:i:s'],
             'end_time' => ['required', 'date_format:H:i:s'],
-            'name' => ['required', 'string', 'unique:shifts,name,'.$id, 'max:255'],
+            'name' => ['required', 'string', 'unique:shifts,name,' . $id, 'max:255'],
             'shift_payment_multiplier' => ['nullable', 'numeric', 'min:1'],
             'description' => ['nullable', 'string'],
 
@@ -214,8 +236,8 @@ Class ValidationServices extends Controller {
     public function validateOrgDetailsUpdateData($request)
     {
         return $request->validate([
-            'organization_name' => ['required','max:255'],
-            'timezone' => ['required','timezone'],
+            'organization_name' => ['required', 'max:255'],
+            'timezone' => ['required', 'timezone'],
             'email' => ['required', 'email:strict'],
             'organization_address' => ['required', 'string', 'max:255'],
             'absence_limit' => ['required', 'numeric', 'min:0', 'max:365'],
@@ -227,8 +249,8 @@ Class ValidationServices extends Controller {
 
             // Conditional validation. If is_ip_based is true, then ip is required and must be an IP address, nullable otherwise.
             // Laravel Already has 'ip' validation rule, but it does not support wildcards. So, I have created a custom rule for that.
-            'ip' => $request->get('is_ip_based', false) ?  ['required' , 'array'] : ['nullable'],
-            'ip.*' => $request->get('is_ip_based', false) ?  ['required' , new CustomIPValidator()] : ['nullable'],
+            'ip' => $request->get('is_ip_based', false) ?  ['required', 'array'] : ['nullable'],
+            'ip.*' => $request->get('is_ip_based', false) ?  ['required', new CustomIPValidator()] : ['nullable'],
         ], $this->validationMessages);
     }
 
@@ -282,7 +304,7 @@ Class ValidationServices extends Controller {
 
         $arraySizes = collect($validatedData)
             ->except(['date'])
-            ->reject(fn ($value) => is_array($value) && count($value) === count($validatedData['employee_id']))
+            ->reject(fn($value) => is_array($value) && count($value) === count($validatedData['employee_id']))
             ->keys();
 
         if ($arraySizes->isNotEmpty()) {
@@ -300,7 +322,7 @@ Class ValidationServices extends Controller {
     public function validateCalendarItemCreationDetails($request)
     {
         return $request->validate([
-            'date' => ['array','size:2'],
+            'date' => ['array', 'size:2'],
             'date.*' => ['nullable', 'date_format:Y-m-d'],
             'title' => ['required', 'string'],
             'type' => ['required', 'string', 'in:holiday,meeting,event,other'],
@@ -309,7 +331,7 @@ Class ValidationServices extends Controller {
     public function validateYearDayCreationDetails($request)
     {
         return $request->validate([
-            'year' => ['required','integer', 'min:2000', 'max:2099'],
+            'year' => ['required', 'integer', 'min:2000', 'max:2099'],
             'saturday' => ['required', 'min:52', 'max:53'],
             'sunday' => ['required', 'min:52', 'max:53'],
             'monday' => ['required', 'min:52', 'max:53'],
@@ -324,31 +346,31 @@ Class ValidationServices extends Controller {
         $rules = [
 
             // Quick Pay
-            'quick_pay' => ['required','boolean'],
-            'quick_pay_send_email' => ['required','boolean'],
+            'quick_pay' => ['required', 'boolean'],
+            'quick_pay_send_email' => ['required', 'boolean'],
 
             // Additions
-            'rewards' => ['nullable','numeric', 'min:0'],
-            'incentives' => ['nullable','numeric', 'min:0'],
-            'reimbursements' => ['nullable','numeric', 'min:0'],
-            'shift_differentials' => ['nullable','numeric', 'min:0'],
-            'commissions' => ['nullable','numeric', 'min:0'],
-            'extra_hour_rate' => ['nullable','numeric', 'min:0'],
+            'rewards' => ['nullable', 'numeric', 'min:0'],
+            'incentives' => ['nullable', 'numeric', 'min:0'],
+            'reimbursements' => ['nullable', 'numeric', 'min:0'],
+            'shift_differentials' => ['nullable', 'numeric', 'min:0'],
+            'commissions' => ['nullable', 'numeric', 'min:0'],
+            'extra_hour_rate' => ['nullable', 'numeric', 'min:0'],
 
             // Deductions
-            'social_security_contributions' => ['nullable','numeric', 'min:0'],
-            'health_insurance' => ['nullable','numeric', 'min:0'],
-            'retirement_plan' => ['nullable','numeric', 'min:0'],
-            'benefits' => ['nullable','numeric', 'min:0'],
-            'union_fees' => ['nullable','numeric', 'min:0'],
-            'negative_hour_rate' => ['nullable','numeric', 'min:0'],
+            'social_security_contributions' => ['nullable', 'numeric', 'min:0'],
+            'health_insurance' => ['nullable', 'numeric', 'min:0'],
+            'retirement_plan' => ['nullable', 'numeric', 'min:0'],
+            'benefits' => ['nullable', 'numeric', 'min:0'],
+            'union_fees' => ['nullable', 'numeric', 'min:0'],
+            'negative_hour_rate' => ['nullable', 'numeric', 'min:0'],
 
             // Metric Multiplier
-            'metricsIDs' => ['required','array'],
-            'metricsIDs.*' => ['required','integer', 'min:1'],
-            'metrics' => ['required','array'],
-            'metrics.*' => ['required','numeric'],
-            'performance_multiplier' => ['nullable','numeric', 'min:0'],
+            'metricsIDs' => ['required', 'array'],
+            'metricsIDs.*' => ['required', 'integer', 'min:1'],
+            'metrics' => ['required', 'array'],
+            'metrics.*' => ['required', 'numeric'],
+            'performance_multiplier' => ['nullable', 'numeric', 'min:0'],
         ];
 
         $validatedData = $request->validate($rules);
@@ -363,17 +385,17 @@ Class ValidationServices extends Controller {
     public function validateMetricCreationDetails($request)
     {
         return $request->validate([
-            'criteria' => ['required','unique:metrics', 'string', 'max:255'],
-            'weight' => ['required','numeric', 'min:0', 'max:10'],
-            'step' => ['required','numeric', 'min:0.1', 'max:100'],
+            'criteria' => ['required', 'unique:metrics', 'string', 'max:255'],
+            'weight' => ['required', 'numeric', 'min:0', 'max:10'],
+            'step' => ['required', 'numeric', 'min:0.1', 'max:100'],
         ], $this->validationMessages);
     }
     public function validateMetricUpdateDetails($request, $id)
     {
         return $request->validate([
-            'criteria' => ['required','unique:metrics,criteria,'.$id, 'string', 'max:255'],
-            'weight' => ['required','numeric', 'min:0', 'max:10'],
-            'step' => ['required','numeric', 'min:0.1', 'max:100'],
+            'criteria' => ['required', 'unique:metrics,criteria,' . $id, 'string', 'max:255'],
+            'weight' => ['required', 'numeric', 'min:0', 'max:10'],
+            'step' => ['required', 'numeric', 'min:0.1', 'max:100'],
         ], $this->validationMessages);
     }
     public function validateDayAttendanceDateParameter($day)
@@ -396,5 +418,4 @@ Class ValidationServices extends Controller {
             'status' => ['nullable', 'string', 'in:all,pending,reviewed,paid'],
         ]);
     }
-
 }
