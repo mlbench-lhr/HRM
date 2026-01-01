@@ -188,7 +188,7 @@ class EmployeeController extends Controller
         $employee = Employee::with([
 
             'leaveAllocations',
-            'leaveRequests',             // this loads leave_request rows
+            'leaveRequests.request.createdByAdmin',        // this loads leave_request rows
             'leaveRequests.request',     // load parent request row
             'requests',                  // ALL requests (optional)
             'employeePositions.position',

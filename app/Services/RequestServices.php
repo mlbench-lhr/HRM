@@ -94,7 +94,7 @@ class RequestServices
 
         $empReq->update([
             'status'         => $req['status'],
-            'admin_response' => $req['admin_response'],
+            'admin_response' => $req['admin_response'] ?? null,
         ]);
         //  Send Email to Employee informing them of the status update.
         // Mail::to($empReq->employee->email)->send(new RequestStatusUpdated($empReq));
@@ -178,5 +178,50 @@ class RequestServices
                 $allocation->save();
             });
         }
+    }
+    public function createLeaveByAdmin(array $req, Employee $employee, Employee $admin)
+    {
+        $parent = \App\Models\Request::create([
+            'type'                => 'Leave',
+            'message'             => $req['message'] ?? 'Leave added by admin',
+            'employee_id'         => $employee->id,
+            'status'              => 1, // auto-approved
+            'is_admin_created'    => true,
+            'created_by_admin_id' => $admin->id,
+        ]);
+
+        if ($req['leave_duration'] === 'half') {
+
+            LeaveRequest::create([
+                'request_id'         => $parent->id,
+                'leave_type'         => $req['leave_type'],
+                'leave_duration'     => 0.5,
+                'half_leave_date'    => $req['half_leave_date'],
+                'half_leave_segment' => $req['half_leave_segment'],
+            ]);
+        }
+
+        if ($req['leave_duration'] === 'full') {
+
+            $start = Carbon::parse($req['start_date']);
+            $end   = Carbon::parse($req['end_date']);
+
+            LeaveRequest::create([
+                'request_id'     => $parent->id,
+                'leave_type'     => $req['leave_type'],
+                'leave_duration' => $start->diffInDays($end) + 1,
+                'start_date'     => $start->format('Y-m-d'),
+                'end_date'       => $end->format('Y-m-d'),
+            ]);
+        }
+
+
+        // reuse existing deduction logic
+        $this->updateRequest(
+            new \Illuminate\Http\Request(['status' => 1]),
+            $parent->id
+        );
+
+        return $parent;
     }
 }

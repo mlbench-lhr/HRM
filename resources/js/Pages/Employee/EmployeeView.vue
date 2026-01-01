@@ -20,9 +20,11 @@ import TableRow from "@/Components/Table/TableRow.vue";
 import ToolTip from "@/Components/ToolTip.vue";
 import HistoryDescriptionList from "@/Components/DescriptionList/HistoryDescriptionList.vue";
 import { __ } from "@/Composables/useTranslations.js";
-
+import { ref } from "vue";
+import { useForm } from "@inertiajs/vue3";
+import dayjs from "dayjs";
 let { extractPersonalDetails } = useExtractPersonalDetails();
-
+import { router } from "@inertiajs/vue3";
 const props = defineProps({
     employee: Object,
 });
@@ -55,6 +57,116 @@ const computedManages = computed(() => {
 
     return r;
 });
+const adminLeave = useForm({
+    leave_type: "casual",
+    leave_duration: "full",
+    start_date: null,
+    end_date: null,
+    half_leave_date: null,
+    half_leave_segment: "first half",
+});
+const submitAdminLeave = () => {
+    // let leave_duration_numeric = null;
+
+    // if (adminLeave.leave_duration === "half") {
+    //     leave_duration_numeric = 0.5;
+    // } else if (
+    //     adminLeave.leave_duration === "full" &&
+    //     adminLeave.start_date &&
+    //     adminLeave.end_date
+    // ) {
+    //     leave_duration_numeric =
+    //         dayjs(adminLeave.end_date).diff(
+    //             dayjs(adminLeave.start_date),
+    //             "day"
+    //         ) + 1;
+    // }
+    adminLeave.post(
+        route("admin.leave.add", props.employee.id),
+        {
+            leave_type: adminLeave.leave_type,
+            leave_duration: adminLeave.leave_duration, // "half" | "full"
+            start_date: adminLeave.start_date,
+            end_date: adminLeave.end_date,
+            half_leave_date: adminLeave.half_leave_date,
+            half_leave_segment: adminLeave.half_leave_segment,
+        },
+        {
+            onSuccess: () => {
+                adminLeave.reset();
+                document
+                    .querySelector('[data-modal-hide="AdminAddLeave"]')
+                    ?.click();
+                router.reload({ only: ["employee"] });
+            },
+        }
+    );
+
+    // adminLeave.post(
+    //     route("requests.store"),
+    //     {
+    //         type: "Leave",
+    //         leave_type: adminLeave.leave_type,
+    //       //  leave_duration: leave_duration_numeric,
+    //         half_leave_date: adminLeave.half_leave_date,
+    //         half_leave_segment: adminLeave.half_leave_segment,
+    //         start_date: adminLeave.start_date,
+    //         end_date: adminLeave.end_date,
+    //         //employee_id: props.employee.id,
+    //        // is_admin_created: true,
+    //     },
+    //     {
+    //         onSuccess: () => {
+    //             adminLeave.reset();
+    //             document
+    //                 .querySelector('[data-modal-hide="AdminAddLeave"]')
+    //                 ?.click();
+    //             router.reload({ only: ["employee"] });
+    //         },
+    //     }
+    // );
+};
+
+// const submitAdminLeave = () => {
+//     adminLeave
+//         .transform((data) => {
+//             let duration = null;
+
+//             if (data.leave_duration === "half") {
+//                 duration = 0.5;
+//             }
+
+//             if (
+//                 data.leave_duration === "full" &&
+//                 data.start_date &&
+//                 data.end_date
+//             ) {
+//                 duration =
+//                     dayjs(data.end_date).diff(dayjs(data.start_date), "day") +
+//                     1;
+//             }
+
+//             return {
+//                 ...data,
+//                 type: "Leave",
+//                 leave_duration: duration,
+//             };
+//         })
+//         .post(route("admin.leave.add", { employee: props.employee.id }), {
+//             preserveScroll: true,
+//             onSuccess: () => {
+//                 adminLeave.reset();
+
+//                 // 1️⃣ Close Flowbite modal
+//                 document
+//                     .querySelector('[data-modal-hide="AdminAddLeave"]')
+//                     ?.click();
+
+//                 // 2️⃣ Refresh EmployeeView props
+//                 router.reload({ only: ["employee"] });
+//             },
+//         });
+// };
 </script>
 
 <template>
@@ -363,7 +475,139 @@ const computedManages = computed(() => {
                 </Card>
 
                 <Card>
-                    <h2 class="mb-2 ml-1 font-semibold">Leave History</h2>
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="mb-2 ml-1 font-semibold">Leave History</h2>
+                        <GenericModal
+                            modalId="AdminAddLeave"
+                            :title="__('Add Leave')"
+                            :modalHeader="__('Add Leave for Employee')"
+                            :hasCustomFooter="true"
+                        >
+                            <div class="space-y-4">
+                                <div>
+                                    <label
+                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                    >
+                                        {{ __("Leave Type") }}
+                                    </label>
+                                    <select
+                                        v-model="adminLeave.leave_type"
+                                        class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                    >
+                                        <option value="casual">
+                                            {{ __("Casual Leave") }}
+                                        </option>
+                                        <option value="sick">
+                                            {{ __("Sick Leave") }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label
+                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                    >
+                                        {{ __("Duration") }}
+                                    </label>
+                                    <select
+                                        v-model="adminLeave.leave_duration"
+                                        class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                    >
+                                        <option value="full">
+                                            {{ __("Full Day") }}
+                                        </option>
+                                        <option value="half">
+                                            {{ __("Half Day") }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div
+                                    v-if="adminLeave.leave_duration === 'half'"
+                                    class="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-md border border-gray-100"
+                                >
+                                    <div>
+                                        <label
+                                            class="block text-xs font-medium text-gray-500 mb-1"
+                                            >{{ __("Date") }}</label
+                                        >
+                                        <input
+                                            type="date"
+                                            v-model="adminLeave.half_leave_date"
+                                            class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label
+                                            class="block text-xs font-medium text-gray-500 mb-1"
+                                            >{{ __("Segment") }}</label
+                                        >
+                                        <select
+                                            v-model="
+                                                adminLeave.half_leave_segment
+                                            "
+                                            class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                        >
+                                            <option value="first half">
+                                                First Half
+                                            </option>
+                                            <option value="second half">
+                                                Second Half
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="adminLeave.leave_duration === 'full'"
+                                    class="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-md border border-gray-100"
+                                >
+                                    <div>
+                                        <label
+                                            class="block text-xs font-medium text-gray-500 mb-1"
+                                            >{{ __("Start Date") }}</label
+                                        >
+                                        <input
+                                            type="date"
+                                            v-model="adminLeave.start_date"
+                                            class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label
+                                            class="block text-xs font-medium text-gray-500 mb-1"
+                                            >{{ __("End Date") }}</label
+                                        >
+                                        <input
+                                            type="date"
+                                            v-model="adminLeave.end_date"
+                                            class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <template #customFooter>
+                                <div class="flex justify-end gap-3 w-full">
+                                    <button
+                                        type="button"
+                                        class="btn-secondary"
+                                        data-modal-hide="AdminAddLeave"
+                                    >
+                                        {{ __("Cancel") }}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class="btn-primary"
+                                        @click.stop.prevent="submitAdminLeave"
+                                    >
+                                        {{ __("Add Leave") }}
+                                    </button>
+                                </div>
+                            </template>
+                        </GenericModal>
+                    </div>
 
                     <template v-if="leaves?.length">
                         <Table
@@ -410,10 +654,29 @@ const computedManages = computed(() => {
                                         </span>
                                         <span v-else>—</span>
                                     </TableBody>
+                                    <TableBody>
+                                        <span
+                                            v-if="
+                                                leave.request?.is_admin_created
+                                            "
+                                        >
+                                            Approved (Added by
+                                            {{
+                                                leave.request.created_by_admin
+                                                    ?.name
+                                            }})
+                                        </span>
+                                        <span v-else>
+                                            {{
+                                                leave.request?.status ??
+                                                "Unknown"
+                                            }}
+                                        </span>
+                                    </TableBody>
 
-                                    <TableBody>{{
+                                    <!-- <TableBody>{{
                                         leave.request?.status ?? "Unknown"
-                                    }}</TableBody>
+                                    }}</TableBody> -->
 
                                     <TableBody>{{
                                         leave.remaining_after

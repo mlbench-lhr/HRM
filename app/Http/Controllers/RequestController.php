@@ -174,6 +174,44 @@ class RequestController extends Controller
     {
         $this->requestServices->updateRequest($request, $id);
     }
+    public function adminAddLeave(Request $request, $employeeId)
+    {
+        abort_unless(isAdmin(), 403);
+
+        $employee = \App\Models\Employee::findOrFail($employeeId);
+
+        $data = $request->validate([
+            // 'leave_type'      => 'required',
+            // 'leave_duration'  => 'required|numeric',
+            // 'start_date'      => 'nullable|date',
+            // 'end_date'        => 'nullable|date',
+            // 'half_leave_date' => 'nullable|date',
+            // 'half_leave_segment' => 'nullable|string',
+
+
+            //'type' => ['required', 'string', 'in:Complaint,Payment,Leave,Remote Work,Other'],
+
+            // General
+            // 'message' => ['nullable', 'string'],
+
+            // Leave
+            'leave_type' => ['required_if:type,Leave', 'nullable', 'in:sick,casual', 'string'],
+            'leave_duration' => ['required_if:type,Leave', 'nullable', 'in:full,half', 'string'],
+            'half_leave_date' => ['required_if:leave_duration,half', 'nullable', 'date'],
+            'half_leave_segment' => ['nullable', 'string', 'required_if:leave_duration,half', 'in:first half,second half'],
+
+            'start_date' => ['required_if:leave_duration,full', 'nullable', 'date'],
+            'end_date' => ['required_if:leave_duration,full', 'nullable', 'date', 'after_or_equal:start_date'],
+
+            // Remote work
+            //  'remote_work_date' => ['required_if:type,Remote Work', 'nullable', 'date', 'after_or_equal:today'],
+        ]);
+
+        $this->requestServices
+            ->createLeaveByAdmin($data, $employee, auth()->user());
+
+        return back();
+    }
 
     /**
      * Remove the specified resource from storage.

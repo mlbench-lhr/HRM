@@ -31,6 +31,11 @@ class Request extends Model
     {
         return $this->attributes['status']; // return the DB value directly
     }
+    public function createdByAdmin()
+    {
+        return $this->belongsTo(Employee::class, 'created_by_admin_id');
+    }
+
     protected function status(): Attribute
     {
         return Attribute::make(

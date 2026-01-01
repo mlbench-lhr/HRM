@@ -49,50 +49,54 @@ watch(
 );
 
 // Computed properties to convert JS Dates to strings for Laravel
-const halfLeaveDateStr = computed(() =>
-    form.half_leave_date
-        ? dayjs(form.half_leave_date).format("YYYY-MM-DD")
-        : null
-);
-const startDateStr = computed(() =>
-    form.start_date ? dayjs(form.start_date).format("YYYY-MM-DD") : null
-);
-const endDateStr = computed(() =>
-    form.end_date ? dayjs(form.end_date).format("YYYY-MM-DD") : null
-);
+// const halfLeaveDateStr = computed(() =>
+//     form.half_leave_date
+//         ? dayjs(form.half_leave_date).format("YYYY-MM-DD")
+//         : null
+// );
+// const startDateStr = computed(() =>
+//     form.start_date ? dayjs(form.start_date).format("YYYY-MM-DD") : null
+// );
+// const endDateStr = computed(() =>
+//     form.end_date ? dayjs(form.end_date).format("YYYY-MM-DD") : null
+// );
 
 const submitForm = () => {
-    let leave_duration_numeric = null;
+    // let leave_duration_numeric = null;
 
-    if (form.type === "Leave") {
-        if (form.leave_duration === "half") {
-            leave_duration_numeric = 0.5;
-        } else if (
-            form.leave_duration === "full" &&
-            form.start_date &&
-            form.end_date
-        ) {
-            leave_duration_numeric =
-                dayjs(form.end_date).diff(dayjs(form.start_date), "day") + 1;
-        }
-    }
+    // if (form.type === "Leave") {
+    //     if (form.leave_duration === "half") {
+    //         leave_duration_numeric = 0.5;
+    //     } else if (
+    //         form.leave_duration === "full" &&
+    //         form.start_date &&
+    //         form.end_date
+    //     ) {
+    //         leave_duration_numeric =
+    //             dayjs(form.end_date).diff(dayjs(form.start_date), "day") + 1;
+    //     }
+    // }
 
     // Send string formatted date to Laravel, not Date object
     const payload = {
         type: form.type,
         message: form.message || null,
+
+        // Leave
         leave_type: form.leave_type || null,
-        leave_duration: leave_duration_numeric,
+        leave_duration: form.leave_duration || null, // "half" | "full"
         half_leave_date: form.half_leave_date
             ? dayjs(form.half_leave_date).format("YYYY-MM-DD")
             : null,
-        half_leave_segment: form.half_leave_segment || null, // new
+        half_leave_segment: form.half_leave_segment || null,
         start_date: form.start_date
             ? dayjs(form.start_date).format("YYYY-MM-DD")
             : null,
         end_date: form.end_date
             ? dayjs(form.end_date).format("YYYY-MM-DD")
             : null,
+
+        // Remote work
         remote_work_date: form.remote_work_date
             ? dayjs(form.remote_work_date).format("YYYY-MM-DD")
             : null,
