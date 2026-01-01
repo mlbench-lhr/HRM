@@ -27,7 +27,11 @@ const props = defineProps({
     shifts: Object,
     roles: Object,
 });
-const leave = props.employee.leaveAllocations?.[0] || {
+const currentYear = new Date().getFullYear();
+
+const leave = props.employee.leave_allocations?.find(
+    (l) => Number(l.year) === currentYear
+) || {
     total_leaves: 0,
     casual_leaves: 0,
     sick_leaves: 0,
@@ -57,9 +61,9 @@ const form = useForm({
     role: props.employee.roles[props.employee.roles.length - 1]?.name,
     is_remote: props.employee.is_remote,
     // is_remote:!!props.employee.is_remote,
-    total_leaves: leave.total_leaves,
-    casual_leaves: leave.casual_leaves,
-    sick_leaves: leave.sick_leaves,
+    total_leaves: Number(leave.total_leaves ?? 0),
+    casual_leaves: Number(leave.casual_leaves ?? 0),
+    sick_leaves: Number(leave.sick_leaves ?? 0),
 });
 
 const positionForm = useForm({
@@ -84,6 +88,7 @@ const branchForm = useForm({
 const departmentForm = useForm({
     name: "",
 });
+
 watch(
     () => form.casual_leaves,
     (v) => {
@@ -253,6 +258,7 @@ const submitShift = () => {
         },
     });
 };
+console.log("LEAVES FROM BACKEND:", props.employee.leaveAllocations);
 </script>
 
 <template>

@@ -61,7 +61,15 @@ class RequestController extends Controller
 
         return Inertia::render('Request/Requests', [
             'requests' => $requests
-                ->orderBy('requests.status')
+                ->orderByRaw("
+                    CASE requests.status
+                        WHEN 0 THEN 1
+                        WHEN 1 THEN 2
+                        WHEN 2 THEN 3
+                        ELSE 4
+                    END
+                ")
+                ->orderBy('requests.id', 'desc')
                 ->paginate(config('constants.data.pagination_count'))
                 ->through(function ($row) {
 
@@ -109,6 +117,7 @@ class RequestController extends Controller
 
     public function show(string $id)
     {
+
         $request = \App\Models\Request::with([
             'employee',
             'leaveRequest'

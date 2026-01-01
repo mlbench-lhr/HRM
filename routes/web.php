@@ -43,13 +43,11 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
     Route::put('globals/edit', [\App\Http\Controllers\GlobalsController::class, 'update'])->name('globals.update');
 
     // Logs
-    Route::get('logs',[\App\Http\Controllers\LogsController::class, 'index'])->name('logs.index');
+    Route::get('logs', [\App\Http\Controllers\LogsController::class, 'index'])->name('logs.index');
 
     // Calendar
     Route::get('calendar', [\App\Http\Controllers\CalendarController::class, 'calendarIndex'])->name('calendar.index');
     Route::resource('calendars', \App\Http\Controllers\CalendarController::class);
-
-
 });
 
 // Logged
@@ -68,7 +66,6 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('my-attendance', [\App\Http\Controllers\AttendanceController::class, 'attendanceDashboard'])->name('attendance.dashboard');
     Route::post('attendance/signin', [\App\Http\Controllers\AttendanceController::class, 'dashboardSignInAttendance'])->name('attendance.dashboardSignIn');
     Route::post('attendance/signoff', [\App\Http\Controllers\AttendanceController::class, 'dashboardSignOffAttendance'])->name('attendance.dashboardSignOff');
-
 });
 
 Route::post('/notifications/{id}/read', function ($id) {
@@ -87,4 +84,4 @@ Route::get('language/{language}', function ($language) {
     return redirect()->back();
 })->name('language');
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

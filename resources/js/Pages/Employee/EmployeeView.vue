@@ -78,7 +78,7 @@ const computedManages = computed(() => {
                             }}
                         </h1>
 
-                        <div class="flex inline-flex gap-4">
+                        <div class="flex gap-4">
                             <FlexButton
                                 v-if="
                                     $page.props.auth.user.roles.includes(

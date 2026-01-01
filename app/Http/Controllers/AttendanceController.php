@@ -9,6 +9,7 @@ use App\Services\CommonServices;
 use App\Services\ValidationServices;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -29,8 +30,10 @@ class AttendanceController extends Controller
      */
     public function attendanceDashboard()
     {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
         return Inertia::render('Attendance/AttendanceDashboard', [
-            "EmployeeStats" => auth()->user()->myStats(),
+            "EmployeeStats" => $user()->myStats(),
         ]);
     }
 
@@ -51,7 +54,8 @@ class AttendanceController extends Controller
             $date = '';
         }
 
-        $attendanceList = Attendance::select('date',
+        $attendanceList = Attendance::select(
+            'date',
             DB::raw('COUNT(CASE WHEN status IN (\'late\', \'on_time\') THEN 1 END) as attended_count'),
             DB::raw('COUNT(CASE WHEN status = \'on_time\' THEN 1 END) as on_time_count'),
             DB::raw('COUNT(CASE WHEN status = \'late\' THEN 1 END) as late_count'),
@@ -143,5 +147,4 @@ class AttendanceController extends Controller
     {
         return $this->attendanceServices->selfSignOffAttendance($request);
     }
-
 }

@@ -11,28 +11,72 @@ use Inertia\Inertia;
 
 class AttendanceServices
 {
-    private function validateIP($ip_to_check): bool
+    // private function validateIP($ip_to_check): bool
+    // {
+    //     // $org_ips = json_decode(Globals::first()->ip);
+    //     $org_ips = json_decode(Globals::first()->ip, true);
+    //     if (!is_array($org_ips)) {
+    //         return false;
+    //     }
+    //     foreach ($org_ips as $org_ip) {
+    //         if (str_contains($org_ip, '*')) {
+    //             $org_ip_segment = explode('*', $org_ip)[0];
+    //             $checker = 0;
+    //             for ($i = 0; $i < strlen($org_ip_segment); $i++) {
+    //                 if ($org_ip_segment[$i] == $ip_to_check[$i]) {
+    //                     $checker++;
+    //                 }
+    //             }
+    //             if ($checker == strlen($org_ip_segment)) {
+    //                 return true;
+    //             }
+    //         } else if ($ip_to_check == $org_ip) {
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
+    private function validateIP(string $ip_to_check): bool
     {
-        $org_ips = json_decode(Globals::first()->ip);
-        foreach ($org_ips as $org_ip){
-            if(str_contains($org_ip, '*')) {
-                $org_ip_segment = explode('*', $org_ip)[0];
-                $checker = 0;
-                for ($i = 0; $i < strlen($org_ip_segment); $i++) {
-                    if ($org_ip_segment[$i] == $ip_to_check[$i]) {
-                        $checker++;
-                    }
-                }
-                if ($checker == strlen($org_ip_segment)) {
+
+        $globals = Globals::first();
+
+        if (!(bool) $globals->is_ip_based) {
+            return true;
+        }
+
+        $org_ips = $globals->ip;
+
+        if (is_string($org_ips)) {
+            $org_ips = json_decode($org_ips, true);
+        }
+
+        if (!is_array($org_ips)) {
+            return false;
+        }
+
+        foreach ($org_ips as $org_ip) {
+
+            // Wildcard support: 192.168.1.*
+            if (str_contains($org_ip, '*')) {
+                $prefix = rtrim($org_ip, '*');
+
+                if (str_starts_with($ip_to_check, $prefix)) {
                     return true;
                 }
             }
-            else if($ip_to_check == $org_ip) {
-                return true;
+
+            // Exact match
+            else {
+                if ($ip_to_check === $org_ip) {
+                    return true;
+                }
             }
         }
+
         return false;
     }
+
     private function validateRequest($request)
     {
         /***
@@ -159,7 +203,8 @@ class AttendanceServices
         return to_route('dashboard.index');
     }
 
-    public function selfSignOffAttendance($request){
+    public function selfSignOffAttendance($request)
+    {
         // Validate first
         $res = $this->validateRequest($request);
         if ($res) {
@@ -178,5 +223,4 @@ class AttendanceServices
             return response()->json(['Error' => 'No Sign in record was found.'], 400);
         }
     }
-
 }

@@ -20,7 +20,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('activitylog:clean')->twiceMonthly(1, 16, '00:00'); // Clear Activity Log
         $schedule->call(new MonthlyPayrollsHandle())->monthlyOn(Globals::first()->payroll_day, '00:00');  // The first day of every month at 00:00
         $schedule->command('leaves:allocate')
-            ->yearlyOn(1, 1, '00:10');
+            ->yearlyOn(1, 2, '00:00');
     }
 
     /**

@@ -43,8 +43,8 @@ class StarterSeeder extends Seeder
         ]);
         Shift::create([
             'name' => "Day Shift",
-            'start_time' => '08:00:00',
-            'end_time' => '16:00:00',
+            'start_time' => '9:00:00',
+            'end_time' => '18:00:00',
         ]);
 
         $root = Employee::factory()->create([
@@ -74,7 +74,7 @@ class StarterSeeder extends Seeder
 
         EmployeeSalary::create([
             'employee_id' => 1,
-            'currency' => 'USD',
+            'currency' => 'PKR',
             'salary' => 10000,
             'start_date' => now()->format('Y-m-d'),
             'end_date' => null,

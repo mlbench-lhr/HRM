@@ -37,7 +37,7 @@ const form = useForm({
     department_id: "",
     position_id: "",
     shift_id: "",
-    currency: "",
+    currency: "PKR",
     salary: "",
     role: "",
     is_remote: false,
