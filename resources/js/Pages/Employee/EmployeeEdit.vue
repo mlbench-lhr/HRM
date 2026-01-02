@@ -258,7 +258,6 @@ const submitShift = () => {
         },
     });
 };
-console.log("LEAVES FROM BACKEND:", props.employee.leaveAllocations);
 </script>
 
 <template>

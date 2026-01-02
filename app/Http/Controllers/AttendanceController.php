@@ -33,7 +33,7 @@ class AttendanceController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
         return Inertia::render('Attendance/AttendanceDashboard', [
-            "EmployeeStats" => $user()->myStats(),
+            "EmployeeStats" => $user->myStats(),
         ]);
     }
 
