@@ -10,6 +10,7 @@ use App\Services\PayrollServices;
 use App\Services\ValidationServices;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class PayrollController extends Controller
@@ -96,15 +97,43 @@ class PayrollController extends Controller
         $payroll = Payroll::with('employee')->findOrFail($id);
         $payrollDate = Carbon::parse($payroll->due_date)->subMonthNoOverflow();
         // Check if the payroll has an associated employee
-    if (!$payroll->employee) {
-        return redirect()->back()->withErrors(['employee_not_found' => 'Employee not found for this payroll.']);
-    }
+        if (!$payroll->employee) {
+            return redirect()->back()->withErrors(['employee_not_found' => 'Employee not found for this payroll.']);
+        }
 
 
         $commonServices = new CommonServices();
         $dates = [$payrollDate->year, $payrollDate->month, 1, $payrollDate->year, $payrollDate->month, $payrollDate->daysInMonth];
         // Ensure that activeShift() is available before calling it
-    $shiftModifier = $payroll->employee->activeShift() ? $payroll->employee->activeShift()->shift_payment_multiplier : 1; // Default to 1 if no active shift
+        $shiftModifier = $payroll->employee->activeShift() ? $payroll->employee->activeShift()->shift_payment_multiplier : 1; // Default to 1 if no active shift
+        $attendanceSummary =
+            $payroll->employee->payrollAttendanceSummary(
+                $payrollDate->year,
+                $payrollDate->month
+            );
+        $hours = $payroll->employee->monthHours($payrollDate->year, $payrollDate->month);
+        // $isEmployee = $payroll->employee->hasRole('employee');
+
+        // $gratuity = $isEmployee ? round($payroll->base * 0.05, 2) : 0;
+
+        // Log::info("Corrected Role Check", [
+        //     'is_employee' => $isEmployee,
+        //     'gratuity' => $gratuity
+        // ]);
+        // logger()->info('PAYROLL HOURS DEBUG', [
+        //     'employee_id' => $payroll->employee_id,
+        //     'year' => $payrollDate->year,
+        //     'month' => $payrollDate->month,
+        //     'hours' => $hours,
+        //     'payroll_id' => $payroll->id,
+        //     'retirement_plan' => optional($payroll->deductions)->retirement_plan,
+        //     'employee_roles' => $payroll->employee->roles->pluck('name'),
+        // ]);
+        // Log::info('PAYROLL DEDUCTIONS DEBUG', [
+        //     'payroll_id' => $payroll->id,
+        //     'retirement_plan' => optional($payroll->deductions)->retirement_plan,
+        //     'employee_roles' => $payroll->employee->roles->pluck('name'),
+        // ]);
         return Inertia::render('Payroll/PayrollReview', [
             'payroll' => $payroll,
             "month_stats" => $commonServices->getMonthStats($payroll->employee, $dates),
@@ -112,6 +141,7 @@ class PayrollController extends Controller
             'deductions' => $payroll->deductions, // PLACEHOLDER CODE. MUCH MORE WORK NEEDED HERE
             'income_tax' => Globals::select('income_tax')->get()->first(), // PLACEHOLDER CODE. MUCH MORE WORK NEEDED HERE
             'shift_modifier' => $payroll->employee->activeShift()->shift_payment_multiplier,
+            'attendance_summary' => $attendanceSummary,
             'hours' => $payroll->employee->monthHours($payrollDate->year, $payrollDate->month),
             'metrics' => Metric::where('created_at', '<=', $payroll->created_at)->get(),
         ]);

@@ -10,7 +10,18 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Deduction extends Model
 {
     use HasFactory, LogsActivity;
-    protected $guarded = [];
+    protected $fillable = [
+        'income_tax',
+        'social_security_contributions',
+        'health_insurance',
+        'retirement_plan',
+        'benefits',
+        'union_fees',
+        'undertime',
+        'negative_hour_rate',
+        'unpaid_absence_deduction',
+        'status',
+    ];
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -20,17 +31,18 @@ class Deduction extends Model
 
     public function getSum()
     {
-        return $this->income_tax +
+        return
+            $this->income_tax +
             $this->social_security_contributions +
             $this->health_insurance +
             $this->retirement_plan +
             $this->benefits +
-            $this->undertime +
-            $this->union_fees;
+            $this->union_fees +
+            // $this->overtime +
+            $this->undertime;
     }
     public function payroll(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Payroll::class);
     }
-
 }

@@ -150,7 +150,9 @@ class RequestServices
             $year = Carbon::parse($leaveDate)->year;
 
             $used = (float) $leave->leave_duration;
-
+            if ($empReq->status == 1 && $req['status'] == 1) {
+                return;
+            }
             // 3. Deduct from THAT YEAR only
             DB::transaction(function () use ($empReq, $year, $used) {
 
@@ -216,11 +218,40 @@ class RequestServices
         }
 
 
-        // reuse existing deduction logic
-        $this->updateRequest(
-            new \Illuminate\Http\Request(['status' => 1]),
-            $parent->id
-        );
+        DB::transaction(function () use ($parent, $employee) {
+
+            $leave = $parent->leaveRequest;
+            if (! $leave) {
+                throw new \Exception('Leave record not found for admin-created request');
+            }
+
+            $leaveDate =
+                $leave->start_date
+                ?? $leave->half_leave_date;
+
+            $year = Carbon::parse($leaveDate)->year;
+
+            $allocation = EmployeeLeaveAllocation::where('employee_id', $employee->id)
+                ->where('year', $year)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // DEDUCT ONLY ONCE
+            $allocation->used_leaves += (float) $leave->leave_duration;
+
+            $remaining = $allocation->total_leaves - $allocation->used_leaves;
+
+            if ($remaining < 0) {
+                $allocation->unpaid_leaves = abs($remaining);
+                $allocation->remaining_leaves = 0;
+            } else {
+                $allocation->remaining_leaves = $remaining;
+                $allocation->unpaid_leaves = 0;
+            }
+
+            $allocation->save();
+        });
+
 
         return $parent;
     }

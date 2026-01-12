@@ -483,16 +483,15 @@ const submitAdminLeave = () => {
                             :modalHeader="__('Add Leave for Employee')"
                             :hasCustomFooter="true"
                         >
-                            <div class="space-y-4">
+                            <div class="p-1 space-y-5">
                                 <div>
                                     <label
-                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                        class="block text-sm font-semibold text-gray-700 mb-1.5"
+                                        >{{ __("Leave Type") }}</label
                                     >
-                                        {{ __("Leave Type") }}
-                                    </label>
                                     <select
                                         v-model="adminLeave.leave_type"
-                                        class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                        class="w-full rounded-lg border-gray-300 text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                                     >
                                         <option value="casual">
                                             {{ __("Casual Leave") }}
@@ -505,13 +504,12 @@ const submitAdminLeave = () => {
 
                                 <div>
                                     <label
-                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                        class="block text-sm font-semibold text-gray-700 mb-1.5"
+                                        >{{ __("Duration") }}</label
                                     >
-                                        {{ __("Duration") }}
-                                    </label>
                                     <select
                                         v-model="adminLeave.leave_duration"
-                                        class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                                        class="w-full rounded-lg border-gray-300 text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                                     >
                                         <option value="full">
                                             {{ __("Full Day") }}
@@ -523,75 +521,87 @@ const submitAdminLeave = () => {
                                 </div>
 
                                 <div
-                                    v-if="adminLeave.leave_duration === 'half'"
-                                    class="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-md border border-gray-100"
+                                    class="bg-slate-50 p-4 rounded-xl border border-slate-200"
                                 >
-                                    <div>
-                                        <label
-                                            class="block text-xs font-medium text-gray-500 mb-1"
-                                            >{{ __("Date") }}</label
-                                        >
-                                        <input
-                                            type="date"
-                                            v-model="adminLeave.half_leave_date"
-                                            class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-                                        />
+                                    <div
+                                        v-if="
+                                            adminLeave.leave_duration === 'half'
+                                        "
+                                        class="grid grid-cols-2 gap-4"
+                                    >
+                                        <div class="flex flex-col gap-1">
+                                            <span
+                                                class="text-[10px] uppercase font-bold text-slate-400 tracking-wider"
+                                                >{{ __("Date") }}</span
+                                            >
+                                            <input
+                                                type="date"
+                                                v-model="
+                                                    adminLeave.half_leave_date
+                                                "
+                                                class="rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                        </div>
+                                        <div class="flex flex-col gap-1">
+                                            <span
+                                                class="text-[10px] uppercase font-bold text-slate-400 tracking-wider"
+                                                >{{ __("Segment") }}</span
+                                            >
+                                            <select
+                                                v-model="
+                                                    adminLeave.half_leave_segment
+                                                "
+                                                class="rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                <option value="first half">
+                                                    First Half
+                                                </option>
+                                                <option value="second half">
+                                                    Second Half
+                                                </option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label
-                                            class="block text-xs font-medium text-gray-500 mb-1"
-                                            >{{ __("Segment") }}</label
-                                        >
-                                        <select
-                                            v-model="
-                                                adminLeave.half_leave_segment
-                                            "
-                                            class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-                                        >
-                                            <option value="first half">
-                                                First Half
-                                            </option>
-                                            <option value="second half">
-                                                Second Half
-                                            </option>
-                                        </select>
-                                    </div>
-                                </div>
 
-                                <div
-                                    v-if="adminLeave.leave_duration === 'full'"
-                                    class="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-md border border-gray-100"
-                                >
-                                    <div>
-                                        <label
-                                            class="block text-xs font-medium text-gray-500 mb-1"
-                                            >{{ __("Start Date") }}</label
-                                        >
-                                        <input
-                                            type="date"
-                                            v-model="adminLeave.start_date"
-                                            class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label
-                                            class="block text-xs font-medium text-gray-500 mb-1"
-                                            >{{ __("End Date") }}</label
-                                        >
-                                        <input
-                                            type="date"
-                                            v-model="adminLeave.end_date"
-                                            class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-                                        />
+                                    <div
+                                        v-if="
+                                            adminLeave.leave_duration === 'full'
+                                        "
+                                        class="grid grid-cols-2 gap-4"
+                                    >
+                                        <div class="flex flex-col gap-1">
+                                            <span
+                                                class="text-[10px] uppercase font-bold text-slate-400 tracking-wider"
+                                                >{{ __("Start Date") }}</span
+                                            >
+                                            <input
+                                                type="date"
+                                                v-model="adminLeave.start_date"
+                                                class="rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                        </div>
+                                        <div class="flex flex-col gap-1">
+                                            <span
+                                                class="text-[10px] uppercase font-bold text-slate-400 tracking-wider"
+                                                >{{ __("End Date") }}</span
+                                            >
+                                            <input
+                                                type="date"
+                                                v-model="adminLeave.end_date"
+                                                class="rounded-md border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             <template #customFooter>
-                                <div class="flex justify-end gap-3 w-full">
+                                <div
+                                    class="flex justify-end items-center gap-3 mt-4"
+                                >
                                     <button
                                         type="button"
-                                        class="btn-secondary"
+                                        class="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                                         data-modal-hide="AdminAddLeave"
                                     >
                                         {{ __("Cancel") }}
@@ -599,8 +609,8 @@ const submitAdminLeave = () => {
 
                                     <button
                                         type="button"
-                                        class="btn-primary"
                                         @click.stop.prevent="submitAdminLeave"
+                                        class="px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-100 active:scale-95 transition-all"
                                     >
                                         {{ __("Add Leave") }}
                                     </button>

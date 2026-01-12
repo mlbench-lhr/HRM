@@ -128,16 +128,41 @@ class AttendanceServices
         }
 
         for ($i = 0; $i < count($res['employee_id']); $i++) {
+            $employee = Employee::find($res['employee_id'][$i]);
 
+            $signIn = Carbon::createFromTime(
+                $res['sign_in_time'][$i]['hours'],
+                $res['sign_in_time'][$i]['minutes'],
+                $res['sign_in_time'][$i]['seconds']
+            )->format('H:i:s');
+
+            $signOut = Carbon::createFromTime(
+                $res['sign_off_time'][$i]['hours'],
+                $res['sign_off_time'][$i]['minutes'],
+                $res['sign_off_time'][$i]['seconds']
+            )->format('H:i:s');
+
+            [$workingMinutes, $overtimeMinutes] =
+                $this->calculateMinutes(
+                    $employee,
+                    $res['date'],
+                    $signIn,
+                    $signOut,
+                    $res['status'][$i]
+                );
             // Logic for updating needs to happen here
             $empAtt = Employee::find($res['employee_id'][$i])->attendances()->where('date', $res['date'])->get();
             // If there is an attendance record for the employee on the date, update it
             if (count($empAtt) > 0) {
                 $empAtt[0]->update([
                     'status' => $res['status'][$i],
-                    'sign_in_time' => Carbon::createFromTime($res['sign_in_time'][$i]['hours'], $res['sign_in_time'][$i]['minutes'], $res['sign_in_time'][$i]['seconds'])->format('H:i:s'),
-                    'sign_off_time' => Carbon::createFromTime($res['sign_off_time'][$i]['hours'], $res['sign_off_time'][$i]['minutes'], $res['sign_off_time'][$i]['seconds'])->format('H:i:s'),
+                    'sign_in_time' => $signIn,
+                    'sign_off_time' => $signOut,
+                    // 'sign_in_time' => Carbon::createFromTime($res['sign_in_time'][$i]['hours'], $res['sign_in_time'][$i]['minutes'], $res['sign_in_time'][$i]['seconds'])->format('H:i:s'),
+                    // 'sign_off_time' => Carbon::createFromTime($res['sign_off_time'][$i]['hours'], $res['sign_off_time'][$i]['minutes'], $res['sign_off_time'][$i]['seconds'])->format('H:i:s'),
                     'notes' => $res['notes'][$i],
+                    'working_minutes' => $workingMinutes,
+                    'overtime_minutes' => $overtimeMinutes,
                 ]);
                 // In case there are more than 1 attendance records for the employee on the date, delete them
                 for ($j = 1; $j < count($empAtt); $j++) {
@@ -151,9 +176,13 @@ class AttendanceServices
                 'date' => $res['date'],
                 'employee_id' => $res['employee_id'][$i],
                 'status' => $res['status'][$i],
-                'sign_in_time' => Carbon::createFromTime($res['sign_in_time'][$i]['hours'], $res['sign_in_time'][$i]['minutes'], $res['sign_in_time'][$i]['seconds'])->format('H:i:s'),
-                'sign_off_time' => Carbon::createFromTime($res['sign_off_time'][$i]['hours'], $res['sign_off_time'][$i]['minutes'], $res['sign_off_time'][$i]['seconds'])->format('H:i:s'),
+                'sign_in_time' => $signIn,
+                'sign_off_time' => $signOut,
+                // 'sign_in_time' => Carbon::createFromTime($res['sign_in_time'][$i]['hours'], $res['sign_in_time'][$i]['minutes'], $res['sign_in_time'][$i]['seconds'])->format('H:i:s'),
+                // 'sign_off_time' => Carbon::createFromTime($res['sign_off_time'][$i]['hours'], $res['sign_off_time'][$i]['minutes'], $res['sign_off_time'][$i]['seconds'])->format('H:i:s'),
                 'notes' => $res['notes'][$i],
+                'working_minutes' => $workingMinutes,
+                'overtime_minutes' => $overtimeMinutes,
             ]);
         }
 
@@ -215,12 +244,89 @@ class AttendanceServices
         $attendance = Attendance::where('employee_id', $request->id)->where('date', $today)->first();
 
         if ($attendance) {
+            $employee = Employee::find($request->id);
+
+            [$workingMinutes, $overtimeMinutes] =
+                $this->calculateMinutes(
+                    $employee,
+                    $attendance->date,
+                    $attendance->sign_in_time,
+                    Carbon::now()->format('H:i:s'),
+                    $attendance->status
+                );
+
             $attendance->update([
                 "sign_off_time" => Carbon::now(),
                 "notes" => "Manually filled by employee",
+
+                // 🔴 REQUIRED
+                "working_minutes" => $workingMinutes,
+                "overtime_minutes" => $overtimeMinutes,
             ]);
         } else {
             return response()->json(['Error' => 'No Sign in record was found.'], 400);
         }
+    }
+    public function calculateMinutes(
+        Employee $employee,
+        string $attendanceDate,
+        $signIn,
+        $signOut,
+        ?string $status
+    ): array {
+        $status = $status ?: 'missed';
+        // Missed day
+        if ($status === 'missed' || !$signIn || !$signOut) {
+            return [0, 0];
+        }
+
+        // Expected minutes from shift
+        $shift = $employee->activeShift();
+
+        $shiftStart = Carbon::parse($attendanceDate . ' ' . $shift->start_time);
+        $shiftEnd   = Carbon::parse($attendanceDate . ' ' . $shift->end_time);
+
+        if ($shiftEnd->lessThanOrEqualTo($shiftStart)) {
+            $shiftEnd->addDay();
+        }
+
+        $expectedDailyMinutes = $shiftStart->diffInMinutes($shiftEnd);
+
+
+        $workedMinutes =
+            Carbon::parse($signIn)->diffInMinutes(Carbon::parse($signOut));
+
+        // Partial present (half day)
+        if ($status === 'partial_present') {
+            return [
+                (int) ($expectedDailyMinutes / 2),
+                0
+            ];
+        }
+        // if ($status === 'partial_present') {
+        //     $workingMinutes  = min($workedMinutes, (int) ($expectedDailyMinutes / 2));
+        //     $overtimeMinutes = max(0, $workedMinutes - (int) ($expectedDailyMinutes / 2));
+
+        //     return [$workingMinutes, $overtimeMinutes];
+        // }
+        $workingMinutes  = min($workedMinutes, $expectedDailyMinutes);
+        $overtimeMinutes = max(0, $workedMinutes - $expectedDailyMinutes);
+
+        return [$workingMinutes, $overtimeMinutes];
+    }
+    public function recalcMinutes(Attendance $attendance): void
+    {
+        [$working, $overtime] = $this->calculateMinutes(
+            $attendance->employee,
+            $attendance->date,
+            $attendance->sign_in_time,
+            $attendance->sign_off_time,
+            $attendance->status ?: 'missed'
+        );
+
+        $attendance->update([
+            'working_minutes'  => $working,
+            'overtime_minutes' => $overtime,
+        ]);
     }
 }

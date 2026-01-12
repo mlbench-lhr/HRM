@@ -203,41 +203,113 @@ class EmployeeController extends Controller
         // 1. Group allocations by year for easy lookup
         $allocations = $employee->leaveAllocations->keyBy('year');
 
-        // 2. Sort ALL leave requests by date to calculate history correctly
-        $sortedLeaves = $employee->leaveRequests->sortBy(function ($leave) {
-            return $leave->start_date ?? $leave->half_leave_date;
-        });
+        // // 2. Sort ALL leave requests by date to calculate history correctly
+        // $sortedLeaves = $employee->leaveRequests->sortBy(function ($leave) {
+        //     return $leave->start_date ?? $leave->half_leave_date;
+        // });
 
-        // We need to keep track of "running used" for EACH year separately
+        // // We need to keep track of "running used" for EACH year separately
+        // $runningUsedByYear = [];
+
+        // $sortedLeaves->each(function ($leave) use ($allocations, &$runningUsedByYear) {
+        //     // Find the year of this specific leave
+        //     $date = $leave->start_date ?? $leave->half_leave_date;
+        //     $year = \Carbon\Carbon::parse($date)->year;
+
+        //     // Initialize running used for this year if not exists
+        //     if (!isset($runningUsedByYear[$year])) {
+        //         $runningUsedByYear[$year] = 0;
+        //     }
+
+        //     $allocation = $allocations->get($year);
+
+        //     // If no allocation exists for that year, we can't calculate balances
+        //     if (!$allocation) {
+        //         $leave->remaining_after = 0;
+        //         $leave->unpaid_leave = 0;
+        //         return;
+        //     }
+
+        //     if ($leave->request && $leave->request->status === 'Approved') {
+        //         $duration = (float) $leave->leave_duration;
+
+        //         // Add to the running total for THIS year
+        //         $runningUsedByYear[$year] += $duration;
+
+        //         $totalForYear = (float) $allocation->total_leaves;
+        //         $balance = $totalForYear - $runningUsedByYear[$year];
+
+        //         if ($balance < 0) {
+        //             $leave->remaining_after = 0;
+        //             $leave->unpaid_leave = abs($balance);
+        //         } else {
+        //             $leave->remaining_after = $balance;
+        //             $leave->unpaid_leave = 0;
+        //         }
+        //     } else {
+        //         // For Pending/Rejected, show current state or 0
+        //         $leave->remaining_after = 0;
+        //         $leave->unpaid_leave = 0;
+        //     }
+        // });
+
+        // // 3. Final Step: Update the database totals for the Allocation cards
+        // foreach ($runningUsedByYear as $year => $totalUsed) {
+        //     $allocation = $allocations->get($year);
+        //     if ($allocation) {
+        //         $remaining = max(0, $allocation->total_leaves - $totalUsed);
+        //         $unpaid = ($totalUsed > $allocation->total_leaves) ? ($totalUsed - $allocation->total_leaves) : 0;
+
+        //         $allocation->update([
+        //             'used_leaves' => $totalUsed,
+        //             'remaining_leaves' => $remaining,
+        //             'unpaid_leaves' => $unpaid
+        //         ]);
+        //     }
+        // }
         $runningUsedByYear = [];
 
-        $sortedLeaves->each(function ($leave) use ($allocations, &$runningUsedByYear) {
-            // Find the year of this specific leave
-            $date = $leave->start_date ?? $leave->half_leave_date;
-            $year = \Carbon\Carbon::parse($date)->year;
 
-            // Initialize running used for this year if not exists
-            if (!isset($runningUsedByYear[$year])) {
-                $runningUsedByYear[$year] = 0;
-            }
+        $employee->leaveRequests
+            ->sortBy(function ($leave) {
+                return \Carbon\Carbon::parse(
+                    $leave->start_date
+                        ?? $leave->half_leave_date
+                        ?? $leave->remote_work_date
+                )->timestamp;
+            })
+            ->each(function ($leave) use ($allocations, &$runningUsedByYear) {
 
-            $allocation = $allocations->get($year);
+                $leaveDate =
+                    $leave->start_date
+                    ?? $leave->half_leave_date
+                    ?? $leave->remote_work_date;
 
-            // If no allocation exists for that year, we can't calculate balances
-            if (!$allocation) {
-                $leave->remaining_after = 0;
-                $leave->unpaid_leave = 0;
-                return;
-            }
+                if (! $leaveDate) {
+                    $leave->remaining_after = null;
+                    $leave->unpaid_leave = null;
+                    return;
+                }
 
-            if ($leave->request && $leave->request->status === 'Approved') {
-                $duration = (float) $leave->leave_duration;
+                $year = \Carbon\Carbon::parse($leaveDate)->year;
 
-                // Add to the running total for THIS year
-                $runningUsedByYear[$year] += $duration;
+                $allocation = $allocations->get($year);
+                if (! $allocation) {
+                    $leave->remaining_after = null;
+                    $leave->unpaid_leave = null;
+                    return;
+                }
 
-                $totalForYear = (float) $allocation->total_leaves;
-                $balance = $totalForYear - $runningUsedByYear[$year];
+                if (! isset($runningUsedByYear[$year])) {
+                    $runningUsedByYear[$year] = 0;
+                }
+
+                // Only approved leaves affect balance
+                if ($leave->request && $leave->request->status === 'Approved') {
+                    $runningUsedByYear[$year] += (float) $leave->leave_duration;
+                }
+
+                $balance = (float) $allocation->total_leaves - $runningUsedByYear[$year];
 
                 if ($balance < 0) {
                     $leave->remaining_after = 0;
@@ -246,27 +318,7 @@ class EmployeeController extends Controller
                     $leave->remaining_after = $balance;
                     $leave->unpaid_leave = 0;
                 }
-            } else {
-                // For Pending/Rejected, show current state or 0
-                $leave->remaining_after = 0;
-                $leave->unpaid_leave = 0;
-            }
-        });
-
-        // 3. Final Step: Update the database totals for the Allocation cards
-        foreach ($runningUsedByYear as $year => $totalUsed) {
-            $allocation = $allocations->get($year);
-            if ($allocation) {
-                $remaining = max(0, $allocation->total_leaves - $totalUsed);
-                $unpaid = ($totalUsed > $allocation->total_leaves) ? ($totalUsed - $allocation->total_leaves) : 0;
-
-                $allocation->update([
-                    'used_leaves' => $totalUsed,
-                    'remaining_leaves' => $remaining,
-                    'unpaid_leaves' => $unpaid
-                ]);
-            }
-        }
+            });
 
         return Inertia::render('Employee/EmployeeView', [
             'employee' => $employee,

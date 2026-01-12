@@ -36,7 +36,8 @@ class CommonServices extends Controller
                 'employee_id' => $manager_id,
                 'branch_id' => $thing_type ? null : $thing_id,
                 'department_id' => $thing_type ? $thing_id : null,
-            ]);
+            ]
+        );
     }
 
 
@@ -47,7 +48,7 @@ class CommonServices extends Controller
             'branch_id' => $thing_type ? null : $thing_id,
             'department_id' => $thing_type ? $thing_id : null,
         ]);
-        if ($manager->exists()){
+        if ($manager->exists()) {
             $manager->first()->delete();
         }
     }
@@ -114,8 +115,12 @@ class CommonServices extends Controller
     {
         if ($dates === null) {
             $dates = [
-                Carbon::now()->year, 1, 1,   // Start date default: January 1 of current year
-                Carbon::now()->year, 12, 31  // End date default: December 31 of current year
+                Carbon::now()->year,
+                1,
+                1,   // Start date default: January 1 of current year
+                Carbon::now()->year,
+                12,
+                31  // End date default: December 31 of current year
             ];
         }
 
@@ -149,37 +154,208 @@ class CommonServices extends Controller
 
     // $dateArr: [month_year, month, month_start, month_year, month, month_start] - 2 repeated fields #month_year & month
     // Just want to avoid doing logic of modifying the array for calcOffDays() call.
-    public function getMonthStats($employee, $dateArr){
-        // Check if $employee is null
-    if ($employee === null) {
-        // Handle the error, maybe return a default value or throw an exception
-        return ['error' => 'Employee data is not available'];
-    }
+    // public function getMonthStats($employee, $dateArr)
+    // {
+    //     // Check if $employee is null
+    //     if ($employee === null) {
+    //         // Handle the error, maybe return a default value or throw an exception
+    //         return ['error' => 'Employee data is not available'];
+    //     }
 
-        $globalSettings = Globals::first();
+    //     $globalSettings = Globals::first();
+    //     return [
+    //         'attendable_days' => $dateArr[5] - $this->calcOffDays(
+    //             $globalSettings->weekend_off_days, // Remove json_decode from here
+    //             $employee->hired_on,
+    //             $dateArr
+    //         ),
+
+    //         'attended' => Attendance::where('employee_id', $employee->id)
+    //             ->whereYear('date', $dateArr[0])
+    //             ->whereMonth('date', $dateArr[1])
+    //             ->where('status', 'on_time')
+    //             ->count(),
+    //         'absented' => Attendance::where('employee_id', $employee->id)
+    //             ->whereYear('date', $dateArr[0])
+    //             ->whereMonth('date', $dateArr[1])
+    //             ->where('status', 'missed')
+    //             ->count(),
+    //         'late' => Attendance::where('employee_id', $employee->id)
+    //             ->whereYear('date', $dateArr[0])
+    //             ->whereMonth('date', $dateArr[1])
+    //             ->where('status', 'late')
+    //             ->count(),
+    //     ];
+    // }
+    // public function getMonthStats($employee, $dateArr)
+    // {
+    //     if (!$employee) {
+    //         return ['error' => 'Employee not found'];
+    //     }
+
+    //     [$year, $month] = [$dateArr[0], $dateArr[1]];
+
+    //     $global = Globals::first();
+
+    //     $attendances = Attendance::where('employee_id', $employee->id)
+    //         ->whereYear('date', $year)
+    //         ->whereMonth('date', $month)
+    //         ->get();
+
+    //     $stats = [
+    //         'attendable_days' => $dateArr[5] - $this->calcOffDays(
+    //             $global->weekend_off_days,
+    //             $employee->hired_on,
+    //             $dateArr
+    //         ),
+
+    //         // UI buckets
+    //         'attended'       => 0,
+    //         'late'           => 0,
+    //         'paid_leave'     => 0,
+    //         'partial'        => 0,
+    //         'unpaid_leave'   => 0,
+    //         'absent'         => 0,
+
+    //         // Payroll math
+    //         'worked_hours'   => 0,
+    //         'negative_hours' => 0,
+    //     ];
+
+    //     foreach ($attendances as $a) {
+    //         switch ($a->status) {
+
+    //             case 'on_time':
+    //                 $stats['attended']++;
+    //                 $stats['worked_hours'] += 8;
+    //                 break;
+
+    //             case 'late':
+    //                 $stats['late']++;
+    //                 $stats['worked_hours'] += 8;
+    //                 break;
+
+    //             case 'leave':
+    //                 $stats['paid_leave']++;
+    //                 $stats['worked_hours'] += 8;
+    //                 break;
+
+    //             case 'partial_present':
+    //                 $stats['partial']++;
+    //                 $stats['worked_hours'] += 4;
+    //                 $stats['negative_hours'] += 4;
+    //                 break;
+
+    //             case 'incomplete':
+    //                 $stats['late']++;
+    //                 $stats['worked_hours'] += max(0, ($a->working_minutes ?? 0) / 60);
+    //                 $stats['negative_hours'] += max(
+    //                     0,
+    //                     8 - (($a->working_minutes ?? 0) / 60)
+    //                 );
+    //                 break;
+
+    //             case 'missed':
+    //                 $stats['absent']++;
+    //                 $stats['negative_hours'] += 8;
+    //                 break;
+
+    //             case 'unpaid_leave':
+    //                 $stats['unpaid_leave']++;
+    //                 $stats['negative_hours'] += 8;
+    //                 break;
+    //         }
+    //     }
+
+    //     return $stats;
+    // }
+
+    // public function getMonthStats($employee, $dateArr)
+    // {
+    //     $year  = $dateArr[0];
+    //     $month = $dateArr[1];
+
+    //     $attendances = Attendance::where('employee_id', $employee->id)
+    //         ->whereYear('date', $year)
+    //         ->whereMonth('date', $month)
+    //         ->get();
+
+    //     $stats = [
+    //         'attendable_days' => 0,
+    //         'attended'        => 0,
+    //         'absented'        => 0,
+    //         'negative_hours'  => 0,
+    //     ];
+
+    //     $globals = Globals::first();
+    //     $stats['attendable_days'] =
+    //         $dateArr[5] -
+    //         $this->calcOffDays(
+    //             $globals->weekend_off_days,
+    //             $employee->hired_on,
+    //             $dateArr
+    //         );
+
+    //     foreach ($attendances as $a) {
+
+    //         switch ($a->status) {
+
+    //             // ✅ PAID / PRESENT
+    //             case 'on_time':
+    //             case 'late':
+    //             case 'leave':
+    //                 $stats['attended']++;
+    //                 break;
+
+    //             // ✅ PAID HALF DAY
+    //             case 'partial_present':
+    //                 $stats['attended'] += 0.5;
+    //                 // unpaid half handled ONLY if your system marks it unpaid
+    //                 break;
+
+    //             // ❌ UNPAID / ABSENT
+    //             case 'unpaid_leave':
+    //             case 'missed':
+    //             case 'incomplete':
+    //                 $stats['absented']++;
+    //                 $stats['negative_hours'] += 8;
+    //                 break;
+    //         }
+    //     }
+
+    //     return $stats;
+    // }
+    public function getMonthStats($employee, $dateArr)
+    {
+        $year  = $dateArr[0];
+        $month = $dateArr[1];
+
+        $attendances = Attendance::where('employee_id', $employee->id)
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->get();
+
         return [
-            'attendable_days' => $dateArr[5] - $this->calcOffDays(json_decode($globalSettings->weekend_off_days),
-                    $employee->hired_on, $dateArr),
-            'attended' => Attendance::where('employee_id', $employee->id)
-                ->whereYear('date', $dateArr[0])
-                ->whereMonth('date', $dateArr[1])
-                ->where('status', 'on_time')
-                ->count(),
-            'absented' => Attendance::where('employee_id', $employee->id)
-                ->whereYear('date', $dateArr[0])
-                ->whereMonth('date', $dateArr[1])
-                ->where('status', 'missed')
-                ->count(),
-            'late' => Attendance::where('employee_id', $employee->id)
-                ->whereYear('date', $dateArr[0])
-                ->whereMonth('date', $dateArr[1])
-                ->where('status', 'late')
-                ->count(),
+            'attendable_days' => $attendances->count(),
+
+            'attended' => $attendances->whereIn('status', [
+                'on_time',
+                'leave',
+                'partial_present'
+            ])->count(),
+
+            'late' => $attendances->where('status', 'late')->count(),
+
+            'absented' => $attendances->whereIn('status', [
+                'missed',
+                'unpaid_leave'
+            ])->count(),
         ];
     }
 
     // Expects date to be in YYYY-MM-DD format
-    public function isHoliday($date){
+    public function isHoliday($date)
+    {
         return Calendar::where('type', 'holiday')
             ->where(function ($query) use ($date) {
                 $query->where(function ($query) use ($date) {
@@ -213,5 +389,4 @@ class CommonServices extends Controller
         $date = Carbon::now()->toDateString();
         return $this->isHoliday($date) || $this->isWeekend($date);
     }
-
 }

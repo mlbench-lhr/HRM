@@ -1,0 +1,1 @@
+import{_ as e}from"./app-2686a8d6.js";const o={Complaint:e("Complaint"),Payment:e("Payment"),Leave:e("Leave"),"Remote Work":e("Remote Work"),Other:e("Other")},r={pending:e("Pending"),approved:e("Approved"),rejected:e("Rejected")};export{r as a,o as r};

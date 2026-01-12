@@ -20,13 +20,29 @@ class Shift extends Model
 
     public function employees(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
     {
-        return $this->hasManyThrough(Employee::class, EmployeeShift::class,
-            'shift_id', 'id', 'id', 'employee_id')
+        return $this->hasManyThrough(
+            Employee::class,
+            EmployeeShift::class,
+            'shift_id',
+            'id',
+            'id',
+            'employee_id'
+        )
             ->where('employee_shifts.end_date', null);
     }
-
     public function shiftPeriod(): float|int
     {
+        // $start = Carbon::parse($this->start_time);
+        // $end = Carbon::parse($this->end_time);
+
+        // if ($end->lessThan($start)) {
+        //     $end->addDay();
+        // }
+
+        // // This gets the absolute total minutes (540 for 9 hours)
+        // // and divides by 60 to get exactly 9.0
+        // return $start->diffInMinutes($end) / 60;
+
         $start = Carbon::parse($this->start_time);
         $end = Carbon::parse($this->end_time);
         if ($end->lessThan($start)) {
@@ -35,11 +51,32 @@ class Shift extends Model
         $duration = $end->diff($start);
         return $duration->h + ($duration->i / 60); // returns # hours as a float
     }
+    // public function shiftPeriod(): float|int
+    // {
+    //     // $start = Carbon::parse($this->start_time);
+    //     // $end = Carbon::parse($this->end_time);
+
+    //     // if ($end->lessThan($start)) {
+    //     //     $end->addDay();
+    //     // }
+
+    //     // // This gets the absolute total minutes (540 for 9 hours)
+    //     // // and divides by 60 to get exactly 9.0
+    //     // return $start->diffInMinutes($end) / 60;
+
+    //     $start = Carbon::parse($this->start_time);
+    //     $end = Carbon::parse($this->end_time);
+    //     if ($end->lessThan($start)) {
+    //         $end->addDay(); // Add 24 hours to the end time to prevent the midnight bug.
+    //     }
+    //     $duration = $end->diff($start);
+    //     return $duration->h + ($duration->i / 60); // returns # hours as a float
+    // }
 
     protected function name(): Attribute
     {
         return Attribute::make(
-            get: fn (string $value) => $value
+            get: fn(string $value) => $value
                 . ' (' .
                 Carbon::parse($this->start_time)->format('g:i A')
                 . ' - ' .

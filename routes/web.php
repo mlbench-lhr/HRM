@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Notification;
 
 
 use Illuminate\Support\Facades\Route;
-
+use App\Tasks\DailyAttendanceHandle;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -79,6 +79,28 @@ Route::post('/notifications/{id}/read', function ($id) {
     return back();
 })->name('notifications.read');
 
+
+
+Route::get('/run-task', function () {
+    (new DailyAttendanceHandle)();
+    return "Attendance Task Completed Successfully!";
+});
+Route::get('/_debug/generate-attendance', function () {
+
+    abort_unless(app()->environment('local'), 403);
+
+    $start = \Carbon\Carbon::parse('2025-12-01');
+    $end   = \Carbon\Carbon::parse('2026-01-05');
+
+    while ($start->lte($end)) {
+        (new \App\Tasks\DailyAttendanceHandle())(
+            $start->toDateString()
+        );
+        $start->addDay();
+    }
+
+    return 'Attendance generated from 2025-12-01 to 2026-01-05';
+});
 Route::redirect('/', '/dashboard')->middleware('auth');
 
 // Language Switching

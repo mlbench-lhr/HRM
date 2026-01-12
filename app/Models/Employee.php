@@ -7,10 +7,12 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+
 
 /**
  * @method static Employee user()
@@ -296,35 +298,191 @@ class Employee extends Authenticatable
         ];
     }
 
-    public function monthHours($year, $month): array
+    public function payrollAttendanceSummary(int $year, int $month): array
     {
-        $monthEnd = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('j');
-        $commonServices = new \App\Services\CommonServices();
-        $monthDates = [$year, $month, 1, $year, $month, $monthEnd];
+        $attendances = $this->attendances()
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->get();
 
-        // Calculations for the entire month
-        $holidaysCount = $commonServices->countHolidays($this->hired_on, $monthDates);
-        $workingDays = $monthEnd - $holidaysCount -
-            $commonServices->calcOffDays(Globals::first()->weekend_off_days, $this->hired_on, $monthDates);
+        $summary = [
+            'paid_days'   => 0,
+            'unpaid_days' => 0,
+            'worked_days' => 0,
+            'worked_hours' => 0,
+        ];
 
-        $attended = $this->getAttended();
+        foreach ($attendances as $a) {
+            switch ($a->status) {
 
-        $monthAttendance = (clone $attended)->whereYear('date', $year)->whereMonth('date', $month)->get();
+                case 'on_time':
+                case 'leave':
+                    $summary['paid_days']++;
+                    $summary['worked_days']++;
+                    $summary['worked_hours'] += 8;
+                    break;
 
-        $actualHours =
-            $monthAttendance->sum(function ($attendance) {
-                $signInTime = Carbon::parse($attendance->sign_in_time);
-                $signOffTime = Carbon::parse($attendance->sign_off_time);
-                return $signInTime->diffInMinutes($signOffTime) / 60;
-            });
+                case 'partial_present':
+                    $summary['paid_days'] += 0.5;
+                    $summary['worked_days'] += 0.5;
+                    $summary['worked_hours'] += 4;
+                    break;
 
-        $shiftHours = $this->activeShiftPeriod();
-        $expectedHours = $workingDays * $shiftHours;
+                case 'late':
+                    $summary['paid_days']++;
+                    $summary['worked_hours'] += $a->worked_hours ?? 6;
+                    break;
+
+                case 'unpaid_leave':
+                case 'missed':
+                    $summary['unpaid_days']++;
+                    break;
+
+                case 'incomplete':
+                    // business decision
+                    break;
+            }
+        }
+
+        return $summary;
+    }
+    // public function monthHours(int $year, int $month): array
+    // {
+    //     $shift = $this->activeShift();
+
+    //     if (!$shift) {
+    //         return [
+    //             'expectedHours'   => 0,
+    //             'actualHours'     => 0,
+    //             'hoursDifference' => 0,
+    //         ];
+    //     }
+
+    //     $shiftHours = $shift->shiftPeriod(); // dynamic (9, 8, night, etc.)
+
+    //     $attendances = $this->attendances()
+    //         ->whereYear('date', $year)
+    //         ->whereMonth('date', $month)
+    //         ->get();
+
+    //     $actual   = 0.0;
+    //     $expected = 0.0;
+
+    //     foreach ($attendances as $a) {
+
+    //         // every attendance day is an expected shift
+    //         $expected += $shiftHours;
+
+    //         switch ($a->status) {
+
+    //             case 'on_time':
+    //             case 'leave': // paid leave
+    //                 $actual += $shiftHours;
+    //                 break;
+
+    //             case 'partial_present':
+    //                 $actual += $shiftHours / 2;
+    //                 break;
+
+    //             case 'late':
+    //             case 'incomplete':
+    //                 if ($a->sign_in_time && $a->sign_off_time) {
+    //                     $actual +=
+    //                         Carbon::parse($a->sign_in_time)
+    //                         ->diffInMinutes(Carbon::parse($a->sign_off_time)) / 60;
+    //                 }
+    //                 break;
+
+    //             case 'unpaid_leave':
+    //             case 'missed':
+    //                 // zero actual hours
+    //                 break;
+    //         }
+    //     }
+
+    //     return [
+    //         'expectedHours'   => round($expected, 2),
+    //         'actualHours'     => round($actual, 2),
+    //         'hoursDifference' => round($actual - $expected, 2),
+    //     ];
+    // }
+    public function monthHours(int $year, int $month): array
+    {
+        $shift = $this->activeShift();
+
+        if (!$shift) {
+            return [
+                'expectedHours'   => 0,
+                'actualHours'     => 0,
+                'hoursDifference' => 0,
+            ];
+        }
+
+        // ---- SHIFT LENGTH ----
+        $shiftStart = Carbon::parse($shift->start_time);
+        $shiftEnd   = Carbon::parse($shift->end_time);
+
+        if ($shiftEnd->lessThanOrEqualTo($shiftStart)) {
+            $shiftEnd->addDay();
+        }
+
+        $dailyExpectedMinutes = $shiftStart->diffInMinutes($shiftEnd);
+
+        // ---- EXPECTED: ALL ATTENDABLE DAYS ----
+        $attendableDays = $this->attendances()
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->count();
+
+        $expectedMinutes = $attendableDays * $dailyExpectedMinutes;
+
+        // ---- ACTUAL: STORED TRUTH ----
+        $actualMinutes = $this->attendances()
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->sum(DB::raw('working_minutes + overtime_minutes'));
 
         return [
-            "expectedHours" => $expectedHours,
-            "actualHours" => $actualHours,
-            "hoursDifference" => $actualHours - $expectedHours,
+            'expectedHours'   => round($expectedMinutes / 60, 2),
+            'actualHours'     => round($actualMinutes / 60, 2),
+            'hoursDifference' => round(($actualMinutes - $expectedMinutes) / 60, 2),
         ];
     }
+
+
+
+
+
+
+    // public function monthHours($year, $month): array
+    // {
+    //     $monthEnd = Carbon::createFromDate($year, $month, 1)->endOfMonth()->format('j');
+    //     $commonServices = new \App\Services\CommonServices();
+    //     $monthDates = [$year, $month, 1, $year, $month, $monthEnd];
+
+    //     // Calculations for the entire month
+    //     $holidaysCount = $commonServices->countHolidays($this->hired_on, $monthDates);
+    //     $workingDays = $monthEnd - $holidaysCount -
+    //         $commonServices->calcOffDays(Globals::first()->weekend_off_days, $this->hired_on, $monthDates);
+
+    //     $attended = $this->getAttended();
+
+    //     $monthAttendance = (clone $attended)->whereYear('date', $year)->whereMonth('date', $month)->get();
+
+    //     $actualHours =
+    //         $monthAttendance->sum(function ($attendance) {
+    //             $signInTime = Carbon::parse($attendance->sign_in_time);
+    //             $signOffTime = Carbon::parse($attendance->sign_off_time);
+    //             return $signInTime->diffInMinutes($signOffTime) / 60;
+    //         });
+
+    //     $shiftHours = $this->activeShiftPeriod();
+    //     $expectedHours = $workingDays * $shiftHours;
+
+    //     return [
+    //         "expectedHours" => $expectedHours,
+    //         "actualHours" => $actualHours,
+    //         "hoursDifference" => $actualHours - $expectedHours,
+    //     ];
+    // }
 }

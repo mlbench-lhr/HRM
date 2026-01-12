@@ -105,24 +105,24 @@ class EmployeeServices
             'department_id' => $res['department_id'],
             'is_remote' => $res['is_remote'],
         ]);
-        // $leave = $employee->leaveAllocations()->firstOrCreate(
-        //     ['year' => date('Y')],
-        //     [
-        //         'total_leaves' => 0,
-        //         'casual_leaves' => 0,
-        //         'sick_leaves' => 0
-        //     ]
-        // );
+        $leave = $employee->leaveAllocations()->firstOrCreate(
+            ['year' => date('Y')],
+            [
+                'total_leaves' => 0,
+                'casual_leaves' => 0,
+                'sick_leaves' => 0
+            ]
+        );
 
-        // $leave->update([
-        //     'total_leaves' => $res['total_leaves'],
-        //     'casual_leaves' => $res['casual_leaves'],
-        //     'sick_leaves' => $res['sick_leaves'],
-        //     // 'unpaid_leaves' => $res['unpaid_leaves'] ?? 0,
-        // ]);
-        // Recalculate remaining
-        // $leave->remaining_leaves = $leave->total_leaves - $leave->used_leaves;
-        // $leave->save();
+        $leave->update([
+            'total_leaves' => $res['total_leaves'],
+            'casual_leaves' => $res['casual_leaves'],
+            'sick_leaves' => $res['sick_leaves'],
+            // 'unpaid_leaves' => $res['unpaid_leaves'] ?? 0,
+        ]);
+        //  Recalculate remaining
+        $leave->remaining_leaves = $leave->total_leaves - $leave->used_leaves;
+        $leave->save();
 
         // Update Shifts, Salary, Position, and Permissions
         $curPos = $employee->employeePositions()->whereNull('end_date')->first();
