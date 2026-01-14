@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Notification;
 
 use Illuminate\Support\Facades\Route;
 use App\Tasks\DailyAttendanceHandle;
+use Inertia\Inertia;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -28,6 +30,14 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
     Route::resource('shifts', \App\Http\Controllers\ShiftController::class);
     Route::resource('metrics', \App\Http\Controllers\MetricsController::class);
     Route::resource('requests', \App\Http\Controllers\RequestController::class);
+    //   Route::get('/admin/evaluations', [\App\Http\Controllers\EvaluationController::class, 'adminIndex'])->name('admin.evaluations');
+    Route::get('/admin/evaluations', [\App\Http\Controllers\EvaluationController::class, 'adminIndex'])->name('admin.evaluations');
+    Route::get('/admin/evaluations/{id}', [\App\Http\Controllers\EvaluationController::class, 'show'])->name('admin.evaluations.show');
+    Route::get('/admin/peer-feedback', [\App\Http\Controllers\PeerFeedbackController::class, 'index'])
+        ->name('admin.peer-feedback.index');
+    Route::get('/peer-evaluations/{id}', [\App\Http\Controllers\PeerFeedbackController::class, 'show'])->name('peer-feedback.show');
+
+
     Route::post(
         'employees/{employee}/leave',
         [\App\Http\Controllers\RequestController::class, 'adminAddLeave']
@@ -53,6 +63,7 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
     Route::resource('calendars', \App\Http\Controllers\CalendarController::class);
 });
 
+
 // Logged
 Route::group(['middleware' => ['auth']], function () {
 
@@ -69,6 +80,17 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('my-attendance', [\App\Http\Controllers\AttendanceController::class, 'attendanceDashboard'])->name('attendance.dashboard');
     Route::post('attendance/signin', [\App\Http\Controllers\AttendanceController::class, 'dashboardSignInAttendance'])->name('attendance.dashboardSignIn');
     Route::post('attendance/signoff', [\App\Http\Controllers\AttendanceController::class, 'dashboardSignOffAttendance'])->name('attendance.dashboardSignOff');
+    Route::group(['middleware' => ['role:team lead']], function () {
+        Route::get('/evaluations', [\App\Http\Controllers\EvaluationController::class, 'evaluationForm'])->name('evaluations.form');
+        Route::post('/evaluations', [\App\Http\Controllers\EvaluationController::class, 'store'])->name('evaluations.store');
+    });
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/peer-evaluations', [\App\Http\Controllers\PeerFeedbackController::class, 'create'])
+            ->name('peer-evaluations.create');
+
+        Route::post('/peer-evaluations', [\App\Http\Controllers\PeerFeedbackController::class, 'store'])
+            ->name('peer-feedback.store');
+    });
 });
 
 Route::post('/notifications/{id}/read', function ($id) {
@@ -81,26 +103,26 @@ Route::post('/notifications/{id}/read', function ($id) {
 
 
 
-Route::get('/run-task', function () {
-    (new DailyAttendanceHandle)();
-    return "Attendance Task Completed Successfully!";
-});
-Route::get('/_debug/generate-attendance', function () {
+// Route::get('/run-task', function () {
+//     (new DailyAttendanceHandle)();
+//     return "Attendance Task Completed Successfully!";
+// });
+// Route::get('/_debug/generate-attendance', function () {
 
-    abort_unless(app()->environment('local'), 403);
+//     abort_unless(app()->environment('local'), 403);
 
-    $start = \Carbon\Carbon::parse('2025-12-01');
-    $end   = \Carbon\Carbon::parse('2026-01-05');
+//     $start = \Carbon\Carbon::parse('2025-12-01');
+//     $end   = \Carbon\Carbon::parse('2026-01-05');
 
-    while ($start->lte($end)) {
-        (new \App\Tasks\DailyAttendanceHandle())(
-            $start->toDateString()
-        );
-        $start->addDay();
-    }
+//     while ($start->lte($end)) {
+//         (new \App\Tasks\DailyAttendanceHandle())(
+//             $start->toDateString()
+//         );
+//         $start->addDay();
+//     }
 
-    return 'Attendance generated from 2025-12-01 to 2026-01-05';
-});
+//     return 'Attendance generated from 2025-12-01 to 2026-01-05';
+// });
 Route::redirect('/', '/dashboard')->middleware('auth');
 
 // Language Switching

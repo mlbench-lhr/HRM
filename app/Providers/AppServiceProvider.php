@@ -20,7 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        foreach (['admin', 'employee', 'probation'] as $role) {
+        foreach (['admin', 'team lead', 'employee', 'probation'] as $role) {
             Role::firstOrCreate(['name' => $role]);
         }
         // Localization Carbon

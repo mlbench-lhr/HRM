@@ -96,6 +96,7 @@ class StarterSeeder extends Seeder
             'admin',
             'employee',
             'probation',
+            'team lead'
         ];
 
         foreach ($roles as $role) {

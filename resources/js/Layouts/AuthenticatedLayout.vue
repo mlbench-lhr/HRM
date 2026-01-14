@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed } from "vue";
+//import EvaluationIcon from "@/Components/Icons/EvaluationIcon.vue";
+
 import Dropdown from "@/Components/Dropdown.vue";
 import DropdownLink from "@/Components/DropdownLink.vue";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink.vue";
@@ -173,6 +175,30 @@ function openNotification(n) {
                 >
                     <MoneyIcon class="text-gray-500 dark:text-gray-100" />
                 </SidebarListItem>
+                <SidebarListItem
+                    :item-name="__('Employee Evaluation')"
+                    :hasBadge="false"
+                    link="evaluations.form"
+                    :active-links="['evaluations.form']"
+                >
+                    <UserIcon class="text-gray-500 dark:text-gray-100" />
+                </SidebarListItem>
+                <SidebarListItem
+                    :item-name="__('All Peer Feedback ')"
+                    :hasBadge="false"
+                    link="admin.peer-feedback.index"
+                    :active-links="['admin.peer-feedback.index']"
+                >
+                    <UserIcon class="text-gray-500 dark:text-gray-100" />
+                </SidebarListItem>
+                <SidebarListItem
+                    :item-name="__('All Evaluations')"
+                    :hasBadge="false"
+                    link="admin.evaluations"
+                    :active-links="['admin.evaluations']"
+                >
+                    <UserIcon class="text-gray-500 dark:text-gray-100" />
+                </SidebarListItem>
             </ul>
 
             <ul v-else class="space-y-2 font-medium mb-4">
@@ -234,6 +260,26 @@ function openNotification(n) {
                     :item-name="__('My Attendance')"
                     link="attendance.dashboard"
                     :active-links="['attendance.dashboard']"
+                >
+                    <TableIcon class="text-gray-500 dark:text-gray-100" />
+                </SidebarListItem>
+
+                <SidebarListItem
+                    v-if="
+                        $page.props.auth.user.roles.includes('team lead') ||
+                        $page.props.auth.user.roles.includes('admin')
+                    "
+                    :item-name="__('Employee Evaluation')"
+                    :hasBadge="false"
+                    link="evaluations.form"
+                    :active-links="['evaluations.form']"
+                >
+                    <UserIcon class="text-gray-500 dark:text-gray-100" />
+                </SidebarListItem>
+                <SidebarListItem
+                    :item-name="__('Peer Feedback')"
+                    link="peer-evaluations.create"
+                    :active-links="['peer-evaluations.create']"
                 >
                     <TableIcon class="text-gray-500 dark:text-gray-100" />
                 </SidebarListItem>

@@ -33,8 +33,14 @@ class HandleInertiaRequests extends Middleware
     {
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $request->user() ? $request->user()->only('id', 'name', 'email')
-                        + ["roles"=>$request->user()->getRoleNames()] : null,
+                'user' => $request->user() ? [
+                    'id'    => $request->user()->id,
+                    'name'  => $request->user()->name,
+                    'email' => $request->user()->email,
+                    'roles' => $request->user()->getRoleNames(), // This returns an array of strings
+                ] : null,
+                // 'user' => $request->user() ? $request->user()->only('id', 'name', 'email')
+                //     + ["roles" => $request->user()->getRoleNames()] : null,
                 // latest 10 notifications (read and unread)
                 'notifications' => $request->user()
                     ? $request->user()
@@ -98,17 +104,17 @@ class HandleInertiaRequests extends Middleware
                 ]);
             },
             'ui' => [
-                'empCount'=> Employee::count(),
+                'empCount' => Employee::count(),
                 // Admin sees pending requests count in the sidebar, while employees see only updated requests count.
-                'reqCount'=> $request->user() ? ( isAdmin() ? \App\Models\Request::where('status', 0)->count() :
-                                        \App\Models\Request::where('employee_id', auth()->user()->id)
-                                            ->where('status', '!=', 0)->where('is_seen', false)->count()) : null,
+                'reqCount' => $request->user() ? (isAdmin() ? \App\Models\Request::where('status', 0)->count() :
+                    \App\Models\Request::where('employee_id', auth()->user()->id)
+                    ->where('status', '!=', 0)->where('is_seen', false)->count()) : null,
             ],
             'session' => [
                 'update_in_progress' => session('update_in_progress'),
             ],
-            'locale'=> config('app.locale'),
-            'timezone'=> config('app.timezone'),
+            'locale' => config('app.locale'),
+            'timezone' => config('app.timezone'),
         ]);
     }
 }

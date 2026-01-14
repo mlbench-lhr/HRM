@@ -16,7 +16,11 @@ class ValidationServices extends Controller
 {
 
     protected $validationMessages = [
-        'phone' => 'This phone number format is not valid.',
+        'national_id.digits' => 'The National ID (CNIC) must be exactly 13 digits without dashes.',
+        'national_id.unique' => 'This CNIC is already registered in our system.',
+        'phone.size' => 'The phone number must be exactly 11 digits (e.g., 03001234567).',
+        'phone.regex' => 'The phone number must start with 03 followed by 9 digits.',
+        'phone.unique' => 'This phone number is already in use by another employee.',
         'currency' => 'There seems to be an issue with your selected currency. Have you selected one?',
         'role' => 'Invalid Role',
     ];
@@ -32,11 +36,21 @@ class ValidationServices extends Controller
     public function validateEmployeeCreationDetails($request)
     {
         return $request->validate([
-            'name' => ['required', 'unique:employees', 'max:50'],
+            'name' => ['required',  'max:50'],
             'email' => ['required', 'unique:employees', 'email:strict'],
             //            'national_id' => ['required', 'unique:employees', 'min:14', 'max:14'], // Egypt's national ID is 14 digits
-            'national_id' => ['required', 'unique:employees'],
-            'phone' => ['required', 'regex:/(^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$)/', 'unique:employees'],
+            'national_id' => [
+                'required',
+                'digits:13',           // Exactly 13 numeric digits (Pakistan CNIC)
+                'unique:employees'
+            ],
+
+            'phone' => [
+                'required',
+                'digits:11',           // Use digits instead of size for local 03 format
+                'regex:/^03[0-9]{9}$/',
+                'unique:employees'
+            ],
             'hired_on' => ['nullable', 'date_format:Y-m-d'],
             'address' => ['required', 'string', 'max:255'],
             'bank_acc_no' => ['nullable', 'iban'],
@@ -57,10 +71,8 @@ class ValidationServices extends Controller
                 }
             ],
             'total_leaves' => 'required|integer|min:0',
-            'casual_leaves' => 'required|integer|min:0',
-            'sick_leaves' => 'required|integer|min:0',
-            'casual_leaves' => 'lte:total_leaves',
-            'sick_leaves' => 'lte:total_leaves',
+            'casual_leaves' => ['required', 'integer', 'min:0', 'lte:total_leaves'],
+            'sick_leaves' => ['required', 'integer', 'min:0', 'lte:total_leaves'],
 
         ], $this->validationMessages);
     }
@@ -69,11 +81,20 @@ class ValidationServices extends Controller
     {
         //
         return $request->validate([
-            'name' => ['required', 'unique:employees,name,' . $id, 'max:50'],
+            'name' => ['required', 'max:50'],
             'email' => ['required', 'unique:employees,email,' . $id, 'email:strict'],
             //            'national_id' => ['required', 'unique:employees,national_id,'.$id, 'min:14', 'max:14'], // Egypt's national ID is 14 digits
-            'national_id' => ['required', 'unique:employees,national_id,' . $id],
-            'phone' => ['required', 'regex:/(^[\+]??[0-9]{3}?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$)/', 'unique:employees,phone,' . $id],
+            'national_id' => [
+                'required',
+                'digits:13', // Ensures exactly 13 numeric digits
+                'unique:employees,national_id,' . $id
+            ],
+            'phone' => [
+                'required',
+                'digits:11',           // Use digits instead of size for local 03 format
+                'regex:/^03[0-9]{9}$/',
+                'unique:employees,phone,' . $id
+            ],
             'hired_on' => ['nullable', 'date'],
             'address' => ['required', 'string', 'max:255'],
             'bank_acc_no' => ['iban', 'nullable'],
