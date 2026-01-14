@@ -46,6 +46,8 @@ class Employee extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_remote' => 'boolean',
+        // 'hired_on' => 'date',
     ];
 
     public function leaveAllocations()
