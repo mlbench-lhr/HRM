@@ -30,6 +30,8 @@ Route::group(['middleware' => ['role:admin', 'auth']], function () {
     Route::resource('shifts', \App\Http\Controllers\ShiftController::class);
     Route::resource('metrics', \App\Http\Controllers\MetricsController::class);
     Route::resource('requests', \App\Http\Controllers\RequestController::class);
+    // Team Management Routes
+    Route::resource('teams', \App\Http\Controllers\TeamController::class);
     //   Route::get('/admin/evaluations', [\App\Http\Controllers\EvaluationController::class, 'adminIndex'])->name('admin.evaluations');
     Route::get('/admin/evaluations', [\App\Http\Controllers\EvaluationController::class, 'adminIndex'])->name('admin.evaluations');
     Route::get('/admin/evaluations/{id}', [\App\Http\Controllers\EvaluationController::class, 'show'])->name('admin.evaluations.show');
@@ -80,7 +82,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('my-attendance', [\App\Http\Controllers\AttendanceController::class, 'attendanceDashboard'])->name('attendance.dashboard');
     Route::post('attendance/signin', [\App\Http\Controllers\AttendanceController::class, 'dashboardSignInAttendance'])->name('attendance.dashboardSignIn');
     Route::post('attendance/signoff', [\App\Http\Controllers\AttendanceController::class, 'dashboardSignOffAttendance'])->name('attendance.dashboardSignOff');
-    Route::group(['middleware' => ['role:team lead']], function () {
+    Route::group(['middleware' => ['role:admin|team lead']], function () {
         Route::get('/evaluations', [\App\Http\Controllers\EvaluationController::class, 'evaluationForm'])->name('evaluations.form');
         Route::post('/evaluations', [\App\Http\Controllers\EvaluationController::class, 'store'])->name('evaluations.store');
     });
