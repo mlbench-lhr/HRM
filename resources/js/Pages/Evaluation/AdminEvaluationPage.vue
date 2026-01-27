@@ -1,47 +1,34 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, Link } from "@inertiajs/vue3";
-import OrgTabs from "@/Components/Tabs/OrgTabs.vue";
+import { Head, Link, router } from "@inertiajs/vue3";
 import Card from "@/Components/Card.vue";
 import { __ } from "@/Composables/useTranslations.js";
-import { ref, computed } from "vue";
+import { ref, watch } from "vue";
 
-const props = defineProps({ evaluations: Array });
+// 1. Props now expect an Object (for pagination) and Filters
+const props = defineProps({
+    evaluations: Object,
+    filters: Object
+});
 
-// 1. Create a ref for the selected month (defaulting to empty/all)
-const selectedMonth = ref("");
+// 2. Initialize filter from server prop
+const selectedMonth = ref(props.filters?.month || "");
 
-// 2. Compute the filtered evaluations
-const filteredEvaluations = computed(() => {
-    if (!selectedMonth.value) return props.evaluations;
-
-    return props.evaluations.filter((item) => {
-        const date = new Date(item.created_at);
-        // Format as YYYY-MM to match the input type="month" value
-        const itemMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        return itemMonth === selectedMonth.value;
+// 3. Watcher to trigger Server-Side Search
+watch(selectedMonth, (value) => {
+    router.get(route('admin.evaluations'), { month: value }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true
     });
 });
 
-// Helper to calculate the average of all 13 rating metrics
-const calculateAverage = (item) => {
-    const keys = [
-        "work_done", "quality_of_work", "timeliness", "reliability",
-        "problem_solving", "ownership", "communication_skills",
-        "team_collaboration", "daily_status", "adaptability",
-        "client_handling", "learning_skill", "attendance",
-    ];
-
-    const total = keys.reduce((sum, key) => sum + (Number(item[key]) || 0), 0);
-    const average = total / keys.length;
-    return average.toFixed(1);
-};
-
-// Helper to color-code the average score
+// 4. Helper to color-code the DB score
 const getScoreClass = (score) => {
-    if (score >= 4.5) return "bg-emerald-100 text-emerald-700 border border-emerald-200";
-    if (score >= 3.5) return "bg-[#EDEBFE] text-[#5521B5] border border-[#5521B5]/20";
-    if (score >= 2.5) return "bg-amber-100 text-amber-700 border border-amber-200";
+    const num = Number(score);
+    if (num >= 4.5) return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+    if (num >= 3.5) return "bg-[#EDEBFE] text-[#5521B5] border border-[#5521B5]/20";
+    if (num >= 2.5) return "bg-amber-100 text-amber-700 border border-amber-200";
     return "bg-rose-100 text-rose-700 border border-rose-200";
 };
 </script>
@@ -61,7 +48,7 @@ const getScoreClass = (score) => {
                             {{ __("Performance Reviews") }}
                         </h1>
                         <span class="bg-gray-200 text-gray-700 text-xs font-bold px-2 py-1 rounded-full">
-                            {{ filteredEvaluations.length }}
+                            {{ evaluations.total }}
                         </span>
                     </div>
 
@@ -107,7 +94,7 @@ const getScoreClass = (score) => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                            <tr v-for="item in filteredEvaluations" :key="item.id"
+                            <tr v-for="item in evaluations.data" :key="item.id"
                                 class="hover:bg-[#EDEBFE]/30 dark:hover:bg-gray-700/50 transition-colors group">
                                 <td class="px-6 py-4">
                                     <div
@@ -130,9 +117,9 @@ const getScoreClass = (score) => {
                                 <td class="px-6 py-4 text-center">
                                     <span :class="[
                                         'px-3 py-1 rounded-lg text-xs font-black tracking-tighter',
-                                        getScoreClass(calculateAverage(item)),
+                                        getScoreClass(item.avg_rating),
                                     ]">
-                                        {{ calculateAverage(item) }} / 5.0
+                                        {{ item.avg_rating }} / 5.0
                                     </span>
                                 </td>
 
@@ -155,7 +142,7 @@ const getScoreClass = (score) => {
                         </tbody>
                     </table>
 
-                    <div v-if="filteredEvaluations.length === 0" class="px-6 py-20 text-center">
+                    <div v-if="evaluations.data.length === 0" class="px-6 py-20 text-center">
                         <div
                             class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 mb-4 text-gray-300">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24"
@@ -168,6 +155,30 @@ const getScoreClass = (score) => {
                             {{ selectedMonth ? __("No reviews found for this month.") : __("No evaluations found.") }}
                         </p>
                     </div>
+
+                    <div v-if="evaluations.links.length > 3"
+                        class="px-6 py-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                        <div class="flex items-center justify-center">
+                            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                                aria-label="Pagination">
+                                <template v-for="(link, key) in evaluations.links" :key="key">
+                                    <div v-if="link.url === null"
+                                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 cursor-default"
+                                        v-html="link.label" />
+                                    <Link v-else :href="link.url"
+                                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium hover:bg-gray-50"
+                                        :class="{
+                                            'z-10 bg-indigo-50 border-indigo-500 text-indigo-600': link.active,
+                                            'text-gray-500': !link.active
+                                        }">
+                                        <span v-html="link.label"></span>
+                                    </Link>
+
+                                </template>
+                            </nav>
+                        </div>
+                    </div>
+
                 </Card>
             </div>
         </div>

@@ -259,7 +259,6 @@ class AttendanceServices
                 "sign_off_time" => Carbon::now(),
                 "notes" => "Manually filled by employee",
 
-                // 🔴 REQUIRED
                 "working_minutes" => $workingMinutes,
                 "overtime_minutes" => $overtimeMinutes,
             ]);

@@ -26,7 +26,8 @@ class Evaluation extends Model
         'attendance',
         'final_comments',
         'strong_points',
-        'weak_points'
+        'weak_points',
+        'avg_rating',
     ];
 
     public function evaluator()

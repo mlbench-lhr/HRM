@@ -222,81 +222,102 @@ class Employee extends Authenticatable
     }
     public function myStats(): array
     {
-        // Get Data for current month
-        $now = CarbonImmutable::now();
-        $curDay = $now->day;
-        $curMonth = $now->month;
-        $curYear = $now->year;
-        $monthEnd = $now->endOfMonth()->format('j');
-        $globalSettings = Globals::first();
+        $now = \Carbon\Carbon::now();
+        $globalSettings = \App\Models\Globals::first();
         $commonServices = new \App\Services\CommonServices();
-        $monthDates = [$curYear, $curMonth, 1, $curYear, $curMonth, $monthEnd];
 
-        // Calculations for the entire month
-        $holidaysCount = $commonServices->countHolidays($this->hired_on, $monthDates);
-        // $weekendsCount = $commonServices->calcOffDays(json_decode($globalSettings->weekend_off_days), $this->hired_on, $monthDates);
-        $weekendsCount =  $commonServices->calcOffDays($globalSettings->weekend_off_days, $this->hired_on, $monthDates);
+        // 1. Determine the Start Date for Calculations
+        // Rule: Start from the DAY AFTER they were hired/created.
+        $hiredDate = \Carbon\Carbon::parse($this->hired_on);
+        $startDateForCalc = $hiredDate->copy()->addDay()->startOfDay();
 
-        $workingDays = $monthEnd - $holidaysCount - $weekendsCount;
+        // Ensure we don't calculate for dates before this month started
+        // If they joined last year, start from Day 1 of this month.
+        // If they joined on Jan 5th, start from Jan 6th.
+        $startOfMonth = $now->copy()->startOfMonth();
 
-        // Calculations from the start of the month until today.
-        $holidaysCountSoFar = $commonServices->countHolidays($this->hired_on, [$curYear, $curMonth, 1, $curYear, $curMonth, $curDay]);
-        $workingDaysSoFar = $curDay - 1 - $holidaysCountSoFar - // -1 to exclude today
-            $commonServices->calcOffDays($globalSettings->weekend_off_days, $this->hired_on, [$curYear, $curMonth, 1, $curYear, $curMonth, $curDay]);
+        // The effective start date is whichever is later
+        $effectiveStartDate = $startDateForCalc->greaterThan($startOfMonth) ? $startDateForCalc : $startOfMonth;
 
-        // Calculations for the entire year until today
-        $workDaysSoFarThisYear = $now->startOfYear()->diffInDays($now) - $commonServices->countHolidays($this->hired_on, [$curYear, 1, 1, $curYear, $curMonth, $curDay]) -
-            $commonServices->calcOffDays($globalSettings->weekend_off_days, $this->hired_on, [$curYear, 1, 1, $curYear, $curMonth, $curDay]);
+        // 2. Loop to calculate Expected Hours (Skipping Weekends/Holidays)
+        $expectedMinutesSoFar = 0;
+        $workingDaysSoFar = 0;
 
-        // Calculating attendance stats for the month
-        // $totalAttendanceSoFar attendance from the start of the year (or hire date if they weren't hired this year) until today.
+        // Loop from Effective Start -> Yesterday (or Now)
+        // We iterate day by day to be 100% accurate
+        if ($effectiveStartDate->lessThanOrEqualTo($now)) {
+            $period = \Carbon\CarbonPeriod::create($effectiveStartDate, $now->copy()->subDay()); // Until yesterday? Or Today? usually stats are "so far"
 
+            foreach ($period as $date) {
+                // Check if Day Off
+                if ($commonServices->isDayOff($date->toDateString())) {
+                    continue;
+                }
+
+                // It is a working day
+                $workingDaysSoFar++;
+
+                // Get Shift Duration for this specific day (in case shifts changed)
+                // If you have variable shifts, logic goes here. For now, assuming standard shift.
+                $shift = $this->activeShift();
+                if ($shift) {
+                    $sStart = \Carbon\Carbon::parse($date->toDateString() . ' ' . $shift->start_time);
+                    $sEnd   = \Carbon\Carbon::parse($date->toDateString() . ' ' . $shift->end_time);
+                    if ($sEnd->lessThan($sStart)) $sEnd->addDay();
+                    $expectedMinutesSoFar += $sStart->diffInMinutes($sEnd);
+                }
+            }
+        }
+
+        // 3. Expected for the WHOLE Month (Pro-rated if they joined mid-month)
+        // If they joined mid-month, their "Expected This Month" is lower than existing employees.
+        $expectedMinutesMonth = 0;
+        $workingDaysMonth = 0;
+        $monthPeriod = \Carbon\CarbonPeriod::create($effectiveStartDate, $now->copy()->endOfMonth());
+
+        foreach ($monthPeriod as $date) {
+            if ($commonServices->isDayOff($date->toDateString())) continue;
+            $workingDaysMonth++;
+            // Add standard shift minutes (e.g., 540)
+            $expectedMinutesMonth += 540; // Or dynamic shift logic
+        }
+
+        // 4. Actual Attendance Data
         $attended = $this->getAttended();
         $absented = $this->getAbsented();
 
-        $monthAttendance = (clone $attended)->whereYear('date', $curYear)->whereMonth('date', $curMonth)->get();
+        // Filter attendance to match the calculation period
+        $attendanceRecords = (clone $attended)
+            ->whereDate('date', '>=', $effectiveStartDate)
+            ->whereDate('date', '<=', $now)
+            ->get();
 
-        if (Carbon::parse($this->hired_on)->year < $curYear) {
-            $totalAttendanceSoFar = (clone $attended)->whereYear('date', $curYear)
-                ->whereDate('date', '<=', $now)->count();
+        $actualMinutesSoFar = $attendanceRecords->sum('working_minutes');
 
-            $totalAbsentedSoFar = (clone $absented)->whereYear('date', $curYear)
-                ->whereDate('date', '<=', $now)->count();
-        } else {
-            $totalAttendanceSoFar = (clone $attended)->whereDate('date', '<=', $now)->count();
-            $totalAbsentedSoFar = (clone $absented)->whereDate('date', '<=', $now)->count();
-        }
-        $actualHours =
-            $monthAttendance->sum(function ($attendance) {
-                $signInTime = Carbon::parse($attendance->sign_in_time);
-                $signOffTime = Carbon::parse($attendance->sign_off_time);
-                return $signInTime->diffInMinutes($signOffTime) / 60;
-            });
+        // Stats specific to current month view
+        $holidaysCount = $commonServices->countHolidays($this->hired_on, [$now->year, $now->month, 1, $now->year, $now->month, $now->daysInMonth]);
+        $weekendsCount = $commonServices->calcOffDays($globalSettings->weekend_off_days, $this->hired_on, [$now->year, $now->month, 1, $now->year, $now->month, $now->daysInMonth]);
 
-
-        $shiftHours = $this->activeShiftPeriod();
-        $expectedHours = $workingDays * $shiftHours;
-        $expectedHoursSoFar = $workingDaysSoFar * $shiftHours;
 
         return [
             "YearStats" => $this->getYearStats($globalSettings),
 
-            "attendableThisMonth" => $workingDays,
-            "holidaysThisMonth" => $holidaysCount,
-            "weekendsThisMonth" => $weekendsCount,
-            "attendedThisMonth" => $monthAttendance->count(),
-            "absentedThisMonth" => $this->getAbsented()->whereMonth('date', $curMonth)->count(),
+            "attendableThisMonth" => $workingDaysMonth, // Total working days possible for THIS user this month
+            "holidaysThisMonth"   => $holidaysCount,
+            "weekendsThisMonth"   => $weekendsCount,
 
-            "totalAttendanceThisYear" => $totalAttendanceSoFar,
-            "totalAbsenceThisYear" => $workDaysSoFarThisYear - $totalAttendanceSoFar,
+            "attendedThisMonth"   => $attendanceRecords->whereBetween('date', [$startOfMonth, $now])->count(),
+            "absentedThisMonth"   => $workingDaysSoFar - $attendanceRecords->count(), // Rough estimate
 
-            "totalAttendanceSoFar" => $totalAttendanceSoFar,
-            "totalAbsenceSoFar" => $totalAbsentedSoFar,
+            "totalAttendanceSoFar" => $attendanceRecords->count(),
 
-            "expectedHoursThisMonth" => $expectedHours,
-            "actualHoursThisMonth" => $actualHours,
-            "hoursDifference" => $actualHours - $expectedHours,
-            "hoursDifferenceSoFar" => $actualHours - $expectedHoursSoFar,
+            // Expected Hours
+            "expectedHoursThisMonth" => round($expectedMinutesMonth / 60, 2),
+            "actualHoursThisMonth"   => round($actualMinutesSoFar / 60, 2),
+
+            // Differences
+            "hoursDifference"      => round(($actualMinutesSoFar - $expectedMinutesMonth) / 60, 2), // vs Month Total
+            "hoursDifferenceSoFar" => round(($actualMinutesSoFar - $expectedMinutesSoFar) / 60, 2), // vs Expectations up to today
         ];
     }
 

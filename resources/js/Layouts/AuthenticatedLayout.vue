@@ -265,13 +265,10 @@ function openNotification(n) {
                                         </template>
 
                                         <template #content>
-                                            <DropdownLink v-for="locale in Object.keys(
-                                                locales
-                                            ).filter(
-                                                (locale) =>
-                                                    locale !==
-                                                    $page.props.locale
-                                            )" @click="changeLanguage(locale)">
+                                            <DropdownLink v-for="locale in Object.keys(locales).filter(
+                                                locale => locale !== $page.props.locale
+                                            )" :key="locale" @click="changeLanguage(locale)">
+
                                                 <span :class="'fi fi-' +
                                                     locales[locale][1] +
                                                     ' mx-2'
@@ -411,12 +408,10 @@ function openNotification(n) {
                             </template>
 
                             <template #content>
-                                <DropdownLink v-for="locale in Object.keys(
-                                    locales
-                                ).filter(
-                                    (locale) =>
-                                        locale !== $page.props.locale
-                                )" @click="changeLanguage(locale)">
+                                <DropdownLink v-for="locale in Object.keys(locales).filter(
+                                    locale => locale !== $page.props.locale
+                                )" :key="locale" @click="changeLanguage(locale)">
+
                                     <span :class="'fi fi-' +
                                         locales[locale][1] +
                                         ' mx-2'

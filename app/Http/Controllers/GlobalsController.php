@@ -26,7 +26,11 @@ class GlobalsController extends Controller
 
     public function update(Request $request, ValidationServices $validationServices)
     {
+
         $res = $validationServices->validateOrgDetailsUpdateData($request);
+        if ($res['is_ip_based'] === false) {
+            $res['ip'] = null;
+        }
         Globals::first()->update($res);
 
         // Update Laravel Timezone

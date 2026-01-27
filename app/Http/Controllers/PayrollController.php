@@ -58,11 +58,12 @@ class PayrollController extends Controller
             $payrolls->whereYear('due_date', $request->date['year'])->whereMonth('due_date', $request->date['month'] + 1);
 
         // Status Filter
-        if ($statusParam == 'pending') {
-            $payrolls->where('status', false)->where('is_reviewed', false);
-        } else if ($statusParam == 'reviewed') {
-            $payrolls->where('status', false)->where('is_reviewed', true);
-        } else if ($statusParam == 'paid') {
+        if ($statusParam === 'pending') {
+            $payrolls->where('is_reviewed', true)
+                ->where('status', false);
+        } elseif ($statusParam === 'reviewed') {
+            $payrolls->where('is_reviewed', false);
+        } elseif ($statusParam === 'paid') {
             $payrolls->where('status', true);
         }
 
@@ -161,6 +162,9 @@ class PayrollController extends Controller
      */
     public function updateStatus(Request $request, string $id)
     {
+        $data = $request->validate([
+            'status' => 'required|boolean',
+        ]);
         $this->payrollServices->updatePayrollStatus($request, $id);
     }
 
