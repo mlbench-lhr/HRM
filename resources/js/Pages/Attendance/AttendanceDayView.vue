@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, useForm } from "@inertiajs/vue3";
+import { Head, useForm, router } from "@inertiajs/vue3";
 import FlexButton from "@/Components/FlexButton.vue";
 import AttendanceTabs from "@/Components/Tabs/AttendanceTabs.vue";
 import { useToast } from "vue-toastification";
@@ -15,12 +15,34 @@ import TableBody from "@/Components/Table/TableBody.vue";
 import TableHead from "@/Components/Table/TableHead.vue";
 import TableRow from "@/Components/Table/TableRow.vue";
 import { attendance_types } from "@/Composables/useAttendanceTypes.js";
+import TableBodyAction from "@/Components/Table/TableBodyAction.vue";
 
+import { ref, watch } from "vue";
+
+import SearchBar from "@/Components/SearchBar.vue";
 const props = defineProps({
     attendanceList: Object,
     day: String,
+    filters: Object,
 });
+const term = ref(props.filters?.term || '');
 
+// 2. Create a manual debounce timer
+let timeout = null;
+
+const search = () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+        // Change 'day' to 'date' here to match the route definition
+        router.visit(route('attendance.show', { date: props.day, term: term.value }), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true
+        });
+    }, 400);
+};
+// 3. Watch the term and run the manual search function
+watch(term, search);
 const statusStyles = {
     on_time: "bg-green-100 text-green-800 border-green-200",
     late: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -70,6 +92,7 @@ const destroy = () => {
 </script>
 
 <template>
+
     <Head :title="__('Attendance View')" />
     <AuthenticatedLayout>
         <template #tabs>
@@ -83,31 +106,28 @@ const destroy = () => {
                     </h1>
                     <div class="flex justify-between items-center pb-4 gap-4">
                         <div class="flex justify-center items-center inline">
-                            <FlexButton
-                                :href="route('attendances.create')"
-                                :text="__('Retake/Update Attendance')"
-                            >
+                            <FlexButton :href="route('attendances.create')" :text="__('Retake/Update Attendance')">
                                 <TrashIcon />
                             </FlexButton>
                         </div>
-                        <form
-                            @submit.prevent="destroy"
-                            class="flex justify-center items-center"
-                        >
-                            <PrimaryButton
-                                class="bg-red-600 hover:bg-red-700 focus:bg-red-500 active:bg-red-900"
-                            >
+                        <div class="w-full md:flex-1 md:max-w-md">
+                            <SearchBar>
+                                <input type="text" v-model="term"
+                                    class="w-full pl-10 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                    :placeholder="__('Search employee attendance...')">
+                            </SearchBar>
+                        </div>
+                        <form @submit.prevent="destroy" class="flex justify-center items-center">
+                            <PrimaryButton class="bg-red-600 hover:bg-red-700 focus:bg-red-500 active:bg-red-900">
                                 <TrashIcon />
                                 {{ __("Delete Day Attendance") }}
                             </PrimaryButton>
                         </form>
+
                     </div>
 
-                    <Table
-                        :links="attendanceList.links"
-                        :showingNumber="attendanceList.data.length"
-                        :totalNumber="attendanceList.total"
-                    >
+                    <Table :links="attendanceList.links" :showingNumber="attendanceList.data.length"
+                        :totalNumber="attendanceList.total">
                         <template #Head>
                             <TableHead>{{ __("ID") }}</TableHead>
                             <TableHead>{{ __("Employee") }}</TableHead>
@@ -115,33 +135,25 @@ const destroy = () => {
                             <TableHead>{{ __("Sign In Time") }}</TableHead>
                             <TableHead>{{ __("Sign Off Time") }}</TableHead>
                             <TableHead>{{ __("Notes") }}</TableHead>
+                            <TableHead>{{ __("Action") }}</TableHead>
                         </template>
 
                         <!--Iterate Here-->
                         <template #Body>
-                            <TableRow
-                                v-for="attendance in attendanceList.data"
-                                :key="attendance.id"
-                            >
+                            <TableRow v-for="attendance in attendanceList.data" :key="attendance.id">
                                 <TableBodyHeader>{{
                                     attendance.id
                                 }}</TableBodyHeader>
                                 <TableBodyHeader>{{
                                     attendance.employee_name
                                 }}</TableBodyHeader>
-                                <TableBody
-                                    ><span
-                                        class="px-2.5 py-0.5 rounded-full text-xs font-medium border"
-                                        :class="
-                                            statusStyles[attendance.status] ||
-                                            'bg-gray-100 text-gray-800'
-                                        "
-                                    >
+                                <TableBody><span class="px-2.5 py-0.5 rounded-full text-xs font-medium border" :class="statusStyles[attendance.status] ||
+                                    'bg-gray-100 text-gray-800'
+                                    ">
                                         {{
                                             attendance_types[attendance.status]
                                         }}
-                                    </span></TableBody
-                                >
+                                    </span></TableBody>
                                 <TableBody>{{
                                     attendance.sign_in_time
                                 }}</TableBody>
@@ -150,6 +162,10 @@ const destroy = () => {
                                     __("Haven't Sign Off Yet")
                                 }}</TableBody>
                                 <TableBody>{{ attendance.notes }}</TableBody>
+                                <TableBodyAction :href="route('attendances.edit', { attendance: attendance.id })">
+
+                                    {{ __(" Edit") }}
+                                </TableBodyAction>
                             </TableRow>
                         </template>
                     </Table>

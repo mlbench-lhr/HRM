@@ -4,41 +4,29 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\Evaluation;
-use App\Models\Team; // <--- Make sure to import the Team model
+use App\Models\Team;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class EvaluationController extends Controller
 {
-    /**
-     * Employee evaluation page
-     */
     public function evaluationForm()
     {
         $currentEmployee = Auth::user();
         $userRoles = $currentEmployee->roles->pluck('name');
-        $employees = collect([]); // Default empty collection
+        $employees = collect([]);
 
-        // LOGIC: Filter employees based on Role
-
-        // 1. If Admin: See EVERYONE (except themselves)
         if ($userRoles->contains('admin')) {
             $employees = Employee::where('id', '!=', $currentEmployee->id)->get();
-        }
-
-        // 2. If Team Lead: See ONLY their team members
-        elseif ($userRoles->contains('team lead')) {
-            // Find the team this user leads
+        } elseif ($userRoles->contains('team lead')) {
             $myTeam = Team::where('team_lead_id', $currentEmployee->id)->first();
-
             if ($myTeam) {
-                // Fetch employees belonging to this team
                 $employees = Employee::where('team_id', $myTeam->id)->get();
             }
         }
 
-        // Check monthly restriction for the fetched employees
         foreach ($employees as $emp) {
             $emp->alreadyEvaluated = Evaluation::where('evaluator_id', $currentEmployee->id)
                 ->where('employee_id', $emp->id)
@@ -56,106 +44,137 @@ class EvaluationController extends Controller
     public function show($id)
     {
         $evaluation = Evaluation::with(['employee', 'evaluator'])->findOrFail($id);
-
         return Inertia::render('Evaluation/Show', [
             'evaluation' => $evaluation
         ]);
     }
 
-    /**
-     * Submit evaluation
-     */
     public function store(Request $request)
     {
         /** @var \App\Models\Employee $evaluator */
         $evaluator = Auth::user();
 
-        // VALIDATION: Ensure the employee actually belongs to the team lead (Security Check)
+
+        // 1. VALIDATION: All fields set to REQUIRED
         $request->validate([
             'employee_id' => [
                 'required',
                 'exists:employees,id',
                 function ($attribute, $value, $fail) use ($evaluator) {
-                    // If Admin, skip check
                     if ($evaluator->hasRole('admin')) return;
-
-                    // If Team Lead, check if target user is in their team
                     if ($evaluator->hasRole('team lead')) {
-                        $targetEmployee = Employee::find($value);
-                        $myTeam = Team::where('team_lead_id', $evaluator->id)->first();
-
-                        if (!$myTeam || $targetEmployee->team_id !== $myTeam->id) {
-                            $fail('You are not authorized to evaluate this employee.');
-                        }
+                        $target = Employee::find($value);
+                        $team = Team::where('team_lead_id', $evaluator->id)->first();
+                        if (!$team || $target->team_id !== $team->id) $fail('Unauthorized.');
                     }
                 },
             ],
-            'work_done' => 'nullable|integer|min:1|max:5',
-            'quality_of_work' => 'nullable|integer|min:1|max:5',
-            'timeliness' => 'nullable|integer|min:1|max:5',
-            'reliability' => 'nullable|integer|min:1|max:5',
-            'communication_skills' => 'nullable|integer|min:1|max:5',
-            'daily_status' => 'nullable|integer|min:1|max:5',
-            'problem_solving' => 'nullable|integer|min:1|max:5',
-            'ownership' => 'nullable|integer|min:1|max:5',
-            'team_collaboration' => 'nullable|integer|min:1|max:5',
-            'adaptability' => 'nullable|integer|min:1|max:5',
-            'client_handling' => 'nullable|integer|min:1|max:5',
-            'learning_skill' => 'nullable|integer|min:1|max:5',
-            'attendance' => 'nullable|integer|min:1|max:5',
-            'final_comments' => 'nullable|string',
-            'strong_points' => 'nullable|string',
-            'weak_points' => 'nullable|string',
+
+            'work_done' => 'required|integer|min:1|max:5',
+            'quality_of_work' => 'required|integer|min:1|max:5',
+            'timeliness' => 'required|integer|min:1|max:5',
+            'reliability' => 'required|integer|min:1|max:5',
+            'communication_skills' => 'required|integer|min:1|max:5',
+            'daily_status' => 'required|integer|min:1|max:5',
+            'problem_solving' => 'required|integer|min:1|max:5',
+            'ownership' => 'required|integer|min:1|max:5',
+            'team_collaboration' => 'required|integer|min:1|max:5',
+            'adaptability' => 'required|integer|min:1|max:5',
+            'client_handling' => 'required|integer|min:1|max:5',
+            'learning_skill' => 'required|integer|min:1|max:5',
+            'attendance' => 'required|integer|min:1|max:5',
+
+            'final_comments' => 'required|string|max:1000',
+            'strong_points' => 'required|string|max:1000',
+            'weak_points' => 'required|string|max:1000',
         ]);
 
-        // 1. Get the Role
         $roleName = $evaluator->getRoleNames()->first() ?? 'Employee';
 
-        // 2. Get the Position
+        // Get Position logic...
         try {
-            $positionModel = $evaluator->employeePositions()
-                ->whereNull('end_date')
-                ->with('position')
-                ->first();
-
-            $positionName = $positionModel ? $positionModel->position->name : 'General';
+            $pos = $evaluator->employeePositions()->whereNull('end_date')->with('position')->first();
+            $positionName = $pos ? $pos->position->name : 'General';
         } catch (\Exception $e) {
             $positionName = 'Staff';
         }
 
-        // Check monthly restriction
-        $alreadyEvaluated = Evaluation::where('evaluator_id', $evaluator->id)
+        // Check already evaluated
+        $exists = Evaluation::where('evaluator_id', $evaluator->id)
             ->where('employee_id', $request->employee_id)
             ->whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
-            ->exists();
+            ->whereYear('created_at', now()->year)->exists();
 
-        if ($alreadyEvaluated) {
-            return back()->withErrors(['employee_id' => __('You have already evaluated this employee this month.')]);
-        }
+        if ($exists) return back()->withErrors(['employee_id' => __('Already evaluated this month.')]);
 
-        // Prepare Data
+        // 2. PREPARE DATA & CALCULATE AVERAGE
         $data = $request->all();
         $data['evaluator_id'] = $evaluator->id;
         $data['evaluator_name'] = $evaluator->name;
         $data['evaluator_designation'] = ucfirst($roleName) . ' | ' . $positionName;
+
+        // Sum up the 13 required fields
+        $sum = $request->work_done + $request->quality_of_work + $request->timeliness +
+            $request->reliability + $request->communication_skills + $request->daily_status +
+            $request->problem_solving + $request->ownership + $request->team_collaboration +
+            $request->adaptability + $request->client_handling + $request->learning_skill +
+            $request->attendance;
+
+        // Calculate Average (Round to 1 decimal)
+        $data['avg_rating'] = round($sum / 13, 1);
 
         Evaluation::create($data);
 
         return back()->with('success', __('Evaluation submitted successfully.'));
     }
 
-    /**
-     * Admin view
-     */
-    public function adminIndex()
+    public function myEvaluations(Request $request)
     {
-        $evaluations = Evaluation::with(['employee', 'evaluator'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $user = Auth::user();
+
+        $query = Evaluation::where('employee_id', $user->id)->with('evaluator');
+
+        if ($request->filled('month')) {
+            $date = Carbon::parse($request->month);
+            $query->whereYear('created_at', $date->year)
+                ->whereMonth('created_at', $date->month);
+        }
+
+        // 3. PAGINATION (10 per page)
+        // No manual calculation here. We read 'avg_rating' from DB.
+        $evaluations = $query->orderBy('created_at', 'desc')->paginate(10);
+
+        return Inertia::render('Evaluation/MyEvaluations', [
+            'evaluations' => $evaluations,
+            'filters' => $request->only(['month']),
+        ]);
+    }
+
+    public function adminIndex(Request $request)
+    {
+        // $evaluations = Evaluation::with(['employee', 'evaluator'])
+        //     ->orderBy('created_at', 'desc')
+        //     ->paginate(15);
+
+        // return Inertia::render('Evaluation/AdminEvaluationPage', [
+        //     'evaluations' => $evaluations
+        // ]);
+
+        $query = Evaluation::with(['employee', 'evaluator']);
+
+        // 2. Apply Month Filter
+        if ($request->filled('month')) {
+            $date = Carbon::parse($request->month);
+            $query->whereYear('created_at', $date->year)
+                ->whereMonth('created_at', $date->month);
+        }
+
+
+        $evaluations = $query->orderBy('created_at', 'desc')->paginate(15);
 
         return Inertia::render('Evaluation/AdminEvaluationPage', [
-            'evaluations' => $evaluations
+            'evaluations' => $evaluations,
+            'filters' => $request->only(['month']),
         ]);
     }
 }

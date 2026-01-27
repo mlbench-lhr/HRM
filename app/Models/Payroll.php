@@ -11,7 +11,10 @@ class Payroll extends Model
 {
     use HasFactory, LogsActivity;
     protected $guarded = [];
-
+    protected $casts = [
+        'status' => 'boolean',
+        'is_reviewed' => 'boolean',
+    ];
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults();
@@ -36,14 +39,14 @@ class Payroll extends Model
         return $this->hasMany(EmployeeEvaluation::class);
     }
 
-//    protected function status(): Attribute
-//    {
-//        return Attribute::make(
-//            get: fn (bool $value) => match ($value) {
-//                true => 'Paid',
-//                false => 'Pending',
-//            },
-//        );
-//    }
+    //    protected function status(): Attribute
+    //    {
+    //        return Attribute::make(
+    //            get: fn (bool $value) => match ($value) {
+    //                true => 'Paid',
+    //                false => 'Pending',
+    //            },
+    //        );
+    //    }
 
 }

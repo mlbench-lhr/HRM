@@ -43,6 +43,7 @@ class RequestController extends Controller
             ->leftJoin('leave_requests', 'leave_requests.request_id', '=', 'requests.id')
             ->select([
                 'requests.id',
+                'requests.created_at',
                 'employees.name as employee_name',
                 'requests.type',
                 'requests.status',
@@ -79,7 +80,7 @@ class RequestController extends Controller
                         'type'          => $row->type,
                         'status'        => $row->status,
                         'is_seen'       => $row->is_seen,
-
+                        'created_at'    => $row->created_at ? \Carbon\Carbon::parse($row->created_at)->format('Y-m-d') : null,
                         // final normalized fields Vue expects
                         'start_date' => $row->start_date
                             ?? $row->half_leave_date

@@ -99,7 +99,29 @@ class AttendanceController extends Controller
             "attendable" => $attendable,
         ]);
     }
+    public function edit(Attendance $attendance)
+    {
+        // We load the employee name so we can show it in the header
+        return Inertia::render('Attendance/AttendanceEdit', [
+            'attendance' => $attendance->load('employee:id,name'),
+        ]);
+    }
 
+    public function update(Request $request, Attendance $attendance)
+    {
+        $validated = $request->validate([
+            'status' => 'required|string',
+            'sign_in_time' => 'nullable',
+            'sign_off_time' => 'nullable',
+            'notes' => 'nullable|string',
+        ]);
+
+        $attendance->update($validated);
+
+        // Redirecting back to the specific day view
+        return redirect()->route('attendance.show', ['date' => $attendance->date])
+            ->with('message', 'Attendance Updated Successfully');
+    }
     /**
      * Store a newly created resource in storage.
      */
@@ -109,23 +131,37 @@ class AttendanceController extends Controller
         return $this->attendanceServices->createAttendance($res, $this->commonServices);
     }
 
-    public function dayShow(string $day)
+    public function dayShow(Request $request, string $day) // Add Request $request here
     {
         $date = $this->validationServices->validateDayAttendanceDateParameter($day);
-        if (!is_string($date)) // ERROR
-            return $date; // Error Message
+        if (!is_string($date)) return $date;
+
+        $term = $request->input('term'); // Get the search term from the request
 
         $attendanceList = Attendance::where('date', $date)
             ->join('employees', 'attendances.employee_id', '=', 'employees.id')
-            ->select(['attendances.id', 'employees.name as employee_name', 'attendances.status', 'attendances.sign_in_time', 'attendances.sign_off_time', 'attendances.notes'])
-            ->orderByDesc('attendances.created_at')->paginate(config('constants.data.pagination_count'));
+            // ADD THIS: Filter by employee name if search term exists
+            ->when($term, function ($query, $term) {
+                $query->where('employees.name', 'like', '%' . $term . '%');
+            })
+            ->select([
+                'attendances.id',
+                'employees.name as employee_name',
+                'attendances.status',
+                'attendances.sign_in_time',
+                'attendances.sign_off_time',
+                'attendances.notes'
+            ])
+            ->orderByDesc('attendances.created_at')
+            ->paginate(config('constants.data.pagination_count'))
+            ->withQueryString(); // Keeps search term in pagination links
 
         return Inertia::render('Attendance/AttendanceDayView', [
             "attendanceList" => $attendanceList,
-            "day" => $date
+            "day" => $date,
+            "filters" => $request->only(['term']) // Pass filters back to Vue
         ]);
     }
-
     public function dayDelete(Request $request)
     {
         $res = $request->validate([

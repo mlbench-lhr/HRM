@@ -22,10 +22,10 @@ class Globals extends Model
     protected $casts = [
         'weekend_off_days' => 'array',
         'ip' => 'array', // if you want to work with it as array too
+        'is_ip_based' => 'boolean',
     ];
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults();
     }
-
 }
