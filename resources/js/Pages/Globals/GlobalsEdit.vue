@@ -114,9 +114,11 @@ watch(() => form.is_ip_based, (val) => {
     if (!val) {
         form.ip = null;
     }
-    onMounted(() => {
-        initTooltips();
-    });
+});
+onMounted(() => {
+    initTooltips();
+});
+
 </script>
 
 <template>
@@ -245,8 +247,8 @@ watch(() => form.is_ip_based, (val) => {
                                 {{ __("Note: Supports IPv4 Only") }}.
                             </ToolTip>
                             <span v-if="form.is_ip_based" class="block text-xs">
-                                <a @click="fetchIP()" class="underline text-purple-500" href="#">{{ __(Grab Yours from
-                                    Here, ")
+                                <a @click="fetchIP()" class="underline text-purple-500" href="#">{{ __(`Grab Yours from
+                                    Here, `)
                                 }}</a>
                                 {{
                                     __(

@@ -1,7 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-// IMPORT THE TABS COMPONENT HERE
 import TeamTabs from "@/Components/Tabs/TeamTabs.vue";
 import SearchBar from "@/Components/SearchBar.vue";
 import FlexButton from "@/Components/FlexButton.vue";
@@ -14,26 +13,52 @@ import TableBodyHeader from "@/Components/Table/TableBodyHeader.vue";
 import TableBodyAction from "@/Components/Table/TableBodyAction.vue";
 import TableRow from "@/Components/Table/TableRow.vue";
 import Card from "@/Components/Card.vue";
+import Swal from "sweetalert2";
 import { __ } from "@/Composables/useTranslations.js";
 
-// Props coming from the Controller
 const props = defineProps({
     teams: Object,
 });
 
-// Search and Sort Logic
+// Search and Sort
 const term = ref('');
 const sort = ref('id');
 const sort_dir = ref(true);
 
 const search = debounce(() => {
-    router.visit(route('teams.index', { term: term.value, sort: sort.value, sort_dir: sort_dir.value }),
-        { preserveState: true, preserveScroll: true })
+    router.visit(
+        route('teams.index', {
+            term: term.value,
+            sort: sort.value,
+            sort_dir: sort_dir.value
+        }),
+        { preserveState: true, preserveScroll: true }
+    );
 }, 400);
 
 watch(term, search);
 watch(sort, search);
 watch(sort_dir, search);
+
+// DELETE HANDLER
+const deleteTeam = (teamId) => {
+    Swal.fire({
+        title: __('Delete this team?'),
+        text: __('All members will be unassigned from this team.'),
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: __('Yes, delete'),
+        cancelButtonText: __('Cancel'),
+        reverseButtons: true,
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('teams.destroy', { team: teamId }), {
+                preserveScroll: true,
+            });
+        }
+    });
+};
+
 </script>
 
 <template>
@@ -58,14 +83,18 @@ watch(sort_dir, search);
                         </FlexButton>
 
                         <SearchBar>
-                            <input type="text" v-model="term" class="input-class" :placeholder="__('Search teams...')">
+                            <input type="text" v-model="term" class="input-class"
+                                :placeholder="__('Search teams...')" />
                         </SearchBar>
                     </div>
 
                     <Table :links="teams.links" :showingNumber="teams.data.length" :totalNumber="teams.total">
                         <template #Head>
-                            <TableHead @click="sort = 'id'; sort_dir = !sort_dir;" sortable>{{ __('ID') }} ↕</TableHead>
-                            <TableHead @click="sort = 'name'; sort_dir = !sort_dir;" sortable>{{ __('Team Name') }} ↕
+                            <TableHead @click="sort = 'id'; sort_dir = !sort_dir;" sortable>
+                                {{ __('ID') }} ↕
+                            </TableHead>
+                            <TableHead @click="sort = 'name'; sort_dir = !sort_dir;" sortable>
+                                {{ __('Team Name') }} ↕
                             </TableHead>
                             <TableHead>{{ __('Team Lead') }}</TableHead>
                             <TableHead>{{ __('Members') }}</TableHead>
@@ -97,10 +126,19 @@ watch(sort_dir, search);
                                     {{ team.members_count || 0 }} {{ __('Members') }}
                                 </TableBody>
 
-                                <TableBodyAction :href="route('teams.edit', { team: team.id })"
-                                    class="text-indigo-600 hover:text-indigo-900">
-                                    {{ __('Edit') }}
-                                </TableBodyAction>
+                                <!-- ACTIONS -->
+                                <td class="px-6 py-4 whitespace-nowrap flex gap-4">
+                                    <TableBodyAction :href="route('teams.edit', { team: team.id })"
+                                        class="text-indigo-600 hover:text-indigo-900">
+                                        {{ __('Edit') }}
+                                    </TableBodyAction>
+
+                                    <button @click="deleteTeam(team.id)"
+                                        class="text-red-600 hover:text-red-800 font-medium">
+                                        {{ __('Delete') }}
+                                    </button>
+
+                                </td>
 
                             </TableRow>
                         </template>

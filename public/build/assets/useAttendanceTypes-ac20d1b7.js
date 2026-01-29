@@ -1,1 +1,0 @@
-import{_ as e}from"./app-7737e73f.js";const t={on_time:e("On Time"),late:e("Late"),missed:e("Missed"),leave:e("Paid Leave"),unpaid_leave:e("Unpaid Leave"),partial_present:e("Half Day"),incomplete:e("Incomplete")};export{t as a};
