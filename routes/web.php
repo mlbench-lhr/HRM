@@ -84,6 +84,9 @@ Route::group(['middleware' => ['auth']], function () {
         ->name('evaluations.mine');
     Route::get('/evaluations/{id}', [App\Http\Controllers\EvaluationController::class, 'show'])
         ->name('evaluations.show');
+    Route::get('/interviews', [\App\Http\Controllers\InterviewController::class, 'index'])->name('interviews.index');
+    Route::get('/interviews/create', [\App\Http\Controllers\InterviewController::class, 'create'])->name('interviews.create');
+    Route::post('/interviews', [\App\Http\Controllers\InterviewController::class, 'store'])->name('interviews.store');
     Route::post('attendance/signin', [\App\Http\Controllers\AttendanceController::class, 'dashboardSignInAttendance'])->name('attendance.dashboardSignIn');
     Route::post('attendance/signoff', [\App\Http\Controllers\AttendanceController::class, 'dashboardSignOffAttendance'])->name('attendance.dashboardSignOff');
     Route::group(['middleware' => ['role:admin|team lead']], function () {

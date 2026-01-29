@@ -61,6 +61,7 @@ function openNotification(n) {
         :class="$page.props.locale == 'ar' ? 'right-0' : 'left-0'" aria-label="Sidebar">
         <div
             class="h-full px-3 py-4 overflow-y-auto border-r flex flex-col justify-between dark:bg-gray-800 dark:border-gray-800">
+
             <ul v-if="$page.props.auth.user.roles.includes('admin')" class="space-y-2 font-medium mb-4">
                 <div class="flex flex-row items-center">
                     <div class="bg-purple-500 h-px flex-grow"></div>
@@ -153,6 +154,12 @@ function openNotification(n) {
                     :active-links="['admin.evaluations']">
                     <UserIcon class="text-gray-500 dark:text-gray-100" />
                 </SidebarListItem>
+
+                <SidebarListItem :item-name="__('Interview Records')" :hasBadge="false" link="interviews.index"
+                    :active-links="['interviews.index', 'interviews.create']">
+                    <TableIcon class="text-gray-500 dark:text-gray-100" />
+                </SidebarListItem>
+
             </ul>
 
             <ul v-else class="space-y-2 font-medium mb-4">
@@ -203,6 +210,13 @@ function openNotification(n) {
                     :active-links="['evaluations.form']">
                     <UserIcon class="text-gray-500 dark:text-gray-100" />
                 </SidebarListItem>
+
+                <SidebarListItem v-if="$page.props.auth.user.roles.includes('team lead')"
+                    :item-name="__('Interview Assessment')" :hasBadge="false" link="interviews.create"
+                    :active-links="['interviews.create']">
+                    <TableIcon class="text-gray-500 dark:text-gray-100" />
+                </SidebarListItem>
+
                 <SidebarListItem :item-name="__('Peer Feedback')" link="peer-evaluations.create"
                     :active-links="['peer-evaluations.create']">
                     <TableIcon class="text-gray-500 dark:text-gray-100" />

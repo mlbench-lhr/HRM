@@ -57,15 +57,19 @@ class PayrollController extends Controller
         if ($date)
             $payrolls->whereYear('due_date', $request->date['year'])->whereMonth('due_date', $request->date['month'] + 1);
 
-        // Status Filter
+        // Status Filter (FIXED)
         if ($statusParam === 'pending') {
+            // Not reviewed yet
+            $payrolls->where('is_reviewed', false);
+        } elseif ($statusParam === 'reviewed') {
+            // Reviewed but not paid
             $payrolls->where('is_reviewed', true)
                 ->where('status', false);
-        } elseif ($statusParam === 'reviewed') {
-            $payrolls->where('is_reviewed', false);
         } elseif ($statusParam === 'paid') {
+            // Paid
             $payrolls->where('status', true);
         }
+
 
         return Inertia::render('Payroll/Payrolls', [
             'payrolls' => $payrolls->paginate(config('constants.data.pagination_count')),
