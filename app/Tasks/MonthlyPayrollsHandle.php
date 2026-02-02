@@ -20,44 +20,32 @@ class MonthlyPayrollsHandle
      */
     public function __invoke(): void
     {
-        $period = Carbon::now()->startOfMonth();
-        $dueDate = $period->copy()->endOfMonth();
-        $periodString = $period->format('Y-m');
+        $dueDate = Carbon::now()->startOfMonth()->endOfMonth();
 
         Log::info('Monthly Payroll Generation Started', [
-            'period' => $periodString,
+            'due_date' => $dueDate->toDateString(),
         ]);
 
         try {
-            // Using a transaction ensures that we don't end up with partial data
-            DB::transaction(function () use ($periodString, $dueDate) {
-
-                // cursor() is memory efficient for large datasets
+            DB::transaction(function () use ($dueDate) {
                 foreach (Employee::cursor() as $employee) {
 
-                    // Fetch salary data once per loop
-                    // Expected structure: ['currency' => 'USD', 'base' => 5000]
                     $salary = $employee->salary();
 
                     $payroll = Payroll::firstOrCreate(
                         [
                             'employee_id' => $employee->id,
-                            'period'      => $periodString,
+                            'due_date'    => $dueDate,
                         ],
                         [
-                            'currency'               => $salary['currency'] ?? 'USD',
-                            'base'                   => $salary['base'] ?? 0,
-                            'total_payable'          => $salary['base'] ?? 0,
+                            'currency' => $salary[0],
+                            'base' => $salary[1],
+                            'total_payable' => $salary[1],
                             'performance_multiplier' => 1,
-                            'due_date'               => $dueDate,
-                            'status'                 => 'draft',
+
                         ]
                     );
 
-                    /**
-                     * Optimization: Only create Additions and Deductions if the
-                     * payroll record was just created for the first time.
-                     */
                     if ($payroll->wasRecentlyCreated) {
                         Addition::create([
                             'payroll_id' => $payroll->id,
@@ -73,16 +61,12 @@ class MonthlyPayrollsHandle
             });
 
             Log::info('Monthly Payroll Generation Completed', [
-                'period' => $periodString,
+                'due_date' => $dueDate->toDateString(),
             ]);
         } catch (Throwable $e) {
             Log::error('Payroll Task Failed', [
-                'period' => $periodString,
-                'error'  => $e->getMessage(),
-                'trace'  => $e->getTraceAsString(),
+                'error' => $e->getMessage(),
             ]);
-
-            // Re-throw if you want the Task Scheduler to record the failure
             throw $e;
         }
     }
