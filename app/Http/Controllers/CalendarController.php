@@ -26,7 +26,10 @@ class CalendarController extends Controller
             // Don't expose leave requests to non-admins other than the employee's.
             $leaveRequests = \App\Models\Request::with('employee')->where('status', 1)->where('employee_id', '=', auth()->user()->id)->get();
         } else {
-            $leaveRequests = \App\Models\Request::with('employee')->where('status', 1)->get();
+            $leaveRequests = \App\Models\Request::with('employee')
+                ->where('status', 1)
+                ->whereHas('employee')
+                ->get();
         }
         return Inertia::render('Calendar/Calendar', [
             'calendarItems' => Calendar::get(),
