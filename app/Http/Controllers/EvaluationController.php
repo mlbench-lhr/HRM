@@ -56,20 +56,55 @@ class EvaluationController extends Controller
 
 
         // 1. VALIDATION: All fields set to REQUIRED
+        // $request->validate([
+        //     'employee_id' => [
+        //         'required',
+        //         'exists:employees,id',
+        //         function ($attribute, $value, $fail) use ($evaluator) {
+        //             if ($evaluator->hasRole('admin')) return;
+        //             if ($evaluator->hasRole('team lead')) {
+        //                 $target = Employee::find($value);
+        //                 $team = Team::where('team_lead_id', $evaluator->id)->first();
+        //                 // --- 🛑 PASTE THIS BLOCK TO TEST ---
+        //                 if ($team) {
+        //                     dd([
+        //                         'Employee Team ID' => $target->team_id,
+        //                         'Type of Employee Team ID' => gettype($target->team_id),
+
+        //                         'Lead Team ID' => $team->id,
+        //                         'Type of Lead Team ID' => gettype($team->id),
+
+        //                         'Do IDs Match? (Strict ===)' => $target->team_id === $team->id,
+        //                         'Do IDs Match? (Loose ==)' => $target->team_id == $team->id,
+        //                     ]);
+        //                 }
+        //                 // --- END DEBUG BLOCK ---
+        //                 if (!$team || $target->team_id !== $team->id) $fail('Unauthorized.');
+        //             }
+        //         },
+        //     ],
         $request->validate([
             'employee_id' => [
                 'required',
                 'exists:employees,id',
                 function ($attribute, $value, $fail) use ($evaluator) {
+                    // Admin bypass
                     if ($evaluator->hasRole('admin')) return;
+
                     if ($evaluator->hasRole('team lead')) {
                         $target = Employee::find($value);
-                        $team = Team::where('team_lead_id', $evaluator->id)->first();
-                        if (!$team || $target->team_id !== $team->id) $fail('Unauthorized.');
+
+                        // 1. Get the Team THIS employee belongs to
+                        $targetTeam = Team::find($target->team_id);
+
+                        // 2. Check if the team exists AND if the current user is the leader
+                        // We use '!=' (Loose comparison) to solve the String vs Integer issue
+                        if (!$targetTeam || $targetTeam->team_lead_id != $evaluator->id) {
+                            $fail('Unauthorized: You are not the Team Lead for this employee.');
+                        }
                     }
                 },
             ],
-
             'work_done' => 'required|integer|min:1|max:5',
             'quality_of_work' => 'required|integer|min:1|max:5',
             'timeliness' => 'required|integer|min:1|max:5',
